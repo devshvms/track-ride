@@ -1,124 +1,143 @@
 import { Injectable } from '@angular/core';
-import { Geolocation, Position } from '@capacitor/geolocation';
-import { BehaviorSubject, Observable, Subscription } from 'rxjs';
-import { GpsPoint, Ride, RideBreak } from '../models/ride.model';
+import { BehaviorSubject, combineLatest, Subscription } from 'rxjs';
+import { RideState } from '../models/ride-state.model';
+import { Ride, GpsPoint, RideBreak, PauseReason } from '../models/ride.model';
+import { SettingsService } from './settings.service';
+import { GpsMonitorService } from './gps-monitor.service';
+import { LocationService } from './location.service';
+import { HistoryService } from './history.service';
+import { RideUtils } from '../utils/ride-calculations';
 
-@Injectable({
-  providedIn: 'root'
-})
+@Injectable({ providedIn: 'root' })
 export class RideService {
+  private stateSubject = new BehaviorSubject<RideState>(RideState.IDLE);
+  public currentState$ = this.stateSubject.asObservable();
+
   private currentRideSubject = new BehaviorSubject<Ride | null>(null);
   public currentRide$ = this.currentRideSubject.asObservable();
 
-  private trackingInterval: any;
-  private lastPosition: GpsPoint | null = null;
+  private locationSubscription?: Subscription;
 
-  constructor() {}
+  constructor(
+    private settings: SettingsService,
+    private gpsMonitor: GpsMonitorService,
+    private location: LocationService,
+    private history: HistoryService
+  ) {
+    this.initAutoPauseLogic();
+  }
 
-  async startRide() {
-    const ride: Ride = {
+  startRide() {
+    const newRide: Ride = {
       id: Date.now().toString(),
       startTime: Date.now(),
       points: [],
       breaks: [],
       totalDistance: 0,
-      averageSpeed: 0
+      averageSpeed: 0,
+      maxSpeed: 0
     };
-    this.currentRideSubject.next(ride);
-    this.startTracking();
+    this.currentRideSubject.next(newRide);
+    this.stateSubject.next(RideState.TRACKING);
+    this.startLocationProcessing();
   }
 
-  private async startTracking() {
-    // Configurable interval
-    this.trackingInterval = setInterval(async () => {
-      try {
-        const position = await Geolocation.getCurrentPosition({
-          enableHighAccuracy: true
-        });
-        this.addPoint(position);
-      } catch (e) {
-        console.error('Error getting location', e);
+  private startLocationProcessing() {
+    this.location.startTracking();
+    this.locationSubscription = this.location.location$.subscribe(point => {
+      if (this.stateSubject.value === RideState.TRACKING) {
+        this.processNewPoint(point);
       }
-    }, 5000); // Default 5 seconds
+    });
   }
 
-  private addPoint(position: Position) {
-    const currentRide = this.currentRideSubject.value;
-    if (!currentRide) return;
+  private processNewPoint(newPoint: GpsPoint) {
+    const ride = this.currentRideSubject.value;
+    if (!ride) return;
 
-    const newPoint: GpsPoint = {
-      latitude: position.coords.latitude,
-      longitude: position.coords.longitude,
-      timestamp: position.timestamp,
-      speed: position.coords.speed || 0
-    };
+    const updatedPoints = [...ride.points, newPoint];
+    let addedDistance = 0;
 
-    if (this.lastPosition) {
-      const dist = this.calculateDistance(
-        this.lastPosition.latitude,
-        this.lastPosition.longitude,
-        newPoint.latitude,
-        newPoint.longitude
-      );
-      currentRide.totalDistance += dist;
+    if (ride.points.length > 0) {
+      const lastPoint = ride.points[ride.points.length - 1];
+      addedDistance = RideUtils.calculateDistance(lastPoint, newPoint);
     }
 
-    currentRide.points.push(newPoint);
-    this.lastPosition = newPoint;
+    const totalDistance = ride.totalDistance + addedDistance;
+    const maxSpeed = Math.max(ride.maxSpeed, newPoint.speed || 0);
+    const avgSpeed = RideUtils.calculateAverageSpeed(totalDistance, ride.startTime, Date.now());
+
+    this.currentRideSubject.next({
+      ...ride,
+      points: updatedPoints,
+      totalDistance,
+      maxSpeed,
+      averageSpeed: avgSpeed
+    });
+  }
+
+  /**
+   * Transitions to PAUSED state and records a break entry
+   */
+  pauseRide(reason: PauseReason = 'break') {
+    const ride = this.currentRideSubject.value;
+    if (ride) {
+      const newBreak: RideBreak = { 
+        startTime: Date.now(), 
+        reason,
+        location: ride.points[ride.points.length - 1] // Last known position
+      };
+      const updatedBreaks = [...ride.breaks, newBreak];
+      this.currentRideSubject.next({ ...ride, breaks: updatedBreaks });
+    }
     
-    // Update average speed
-    const durationInSeconds = (Date.now() - currentRide.startTime) / 1000;
-    if (durationInSeconds > 0) {
-      currentRide.averageSpeed = currentRide.totalDistance / durationInSeconds;
-    }
-
-    this.currentRideSubject.next({ ...currentRide });
-  }
-
-  pauseRide(reason: string) {
-    const currentRide = this.currentRideSubject.value;
-    if (!currentRide) return;
-
-    const rideBreak: RideBreak = {
-      timestamp: Date.now(),
-      reason: reason
-    };
-    currentRide.breaks.push(rideBreak);
-    clearInterval(this.trackingInterval);
-    this.currentRideSubject.next({ ...currentRide });
+    // Determine if this was a manual pause or auto-pause
+    const newState = reason.startsWith('auto:') ? RideState.AUTO_PAUSED : RideState.PAUSED;
+    this.stateSubject.next(newState);
   }
 
   resumeRide() {
-    this.startTracking();
+    const ride = this.currentRideSubject.value;
+    if (ride && ride.breaks.length > 0) {
+      const lastBreak = ride.breaks[ride.breaks.length - 1];
+      if (!lastBreak.endTime) {
+        lastBreak.endTime = Date.now();
+      }
+    }
+    this.stateSubject.next(RideState.TRACKING);
   }
 
-  async stopRide(): Promise<Ride | null> {
-    const currentRide = this.currentRideSubject.value;
-    if (!currentRide) return null;
-
-    clearInterval(this.trackingInterval);
-    currentRide.endTime = Date.now();
+  stopAndSaveRide() {
+    const ride = this.currentRideSubject.value;
+    if (ride) {
+      const finalRide = { ...ride, endTime: Date.now() };
+      this.history.saveRide(finalRide);
+      this.currentRideSubject.next(finalRide);
+    }
     
-    // Here we would typically generate the map snapshot
-    // For now, just clear the current ride
-    this.currentRideSubject.next(null);
-    this.lastPosition = null;
-    
-    return currentRide;
+    this.location.stopTracking();
+    this.locationSubscription?.unsubscribe();
+    this.stateSubject.next(RideState.RIDE_SUMMARY);
   }
 
-  private calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
-    const R = 6371e3; // metres
-    const φ1 = lat1 * Math.PI / 180;
-    const φ2 = lat2 * Math.PI / 180;
-    const Δφ = (lat2 - lat1) * Math.PI / 180;
-    const Δλ = (lon2 - lon1) * Math.PI / 180;
-
-    const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
-              Math.cos(φ1) * Math.cos(φ2) *
-              Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-    return R * c;
+  private initAutoPauseLogic() {
+    combineLatest([
+      this.gpsMonitor.status$,
+      this.currentState$
+    ]).subscribe(([gpsStatus, state]) => {
+      const s = this.settings.currentSettings;
+      
+      // Workflow Logic: Pause if GPS is lost and setting is enabled
+      if (s.autoPause.enabled && state === RideState.TRACKING) {
+        if (gpsStatus.isLost && s.autoPause.pauseOnGpsLost) {
+          this.pauseRide('auto:gps_lost');
+        }
+      }
+      
+      // Workflow Logic: Resume if GPS is restored while in AUTO_PAUSED
+      if (state === RideState.AUTO_PAUSED && !gpsStatus.isLost) {
+        this.resumeRide();
+      }
+    });
   }
 }

@@ -1,14 +1,19 @@
+// ride-tracker/src/app/models/ride.model.ts
+
 export interface GpsPoint {
   latitude: number;
   longitude: number;
-  timestamp: number;
+  altitude?: number;
+  accuracy?: number;
   speed?: number; // meters per second
+  timestamp: number;
 }
 
 export interface RideBreak {
-  timestamp: number;
-  reason: string;
-  duration?: number;
+  startTime: number;
+  endTime?: number;
+  reason: PauseReason;
+  location?: GpsPoint;
 }
 
 export interface Ride {
@@ -17,13 +22,39 @@ export interface Ride {
   endTime?: number;
   points: GpsPoint[];
   breaks: RideBreak[];
-  totalDistance: number; // meters
-  averageSpeed: number; // meters per second
-  mapSnapshot?: string; // base64 image or file path
+  totalDistance: number; // in meters
+  averageSpeed: number;
+  maxSpeed: number;
+}
+
+export type PauseReason = 
+  | 'break' 
+  | 'refreshment' 
+  | 'traffic' 
+  | 'fuel'
+  | 'photo'
+  | 'auto:gps_lost' 
+  | 'auto:stationary' 
+  | 'other';
+
+export interface GpsStatus {
+  isLost: boolean;
+  lastFixTimestamp?: number;
+  retryCount: number;
 }
 
 export interface AppSettings {
   gpsAccuracy: 'high' | 'balanced' | 'low';
-  readingInterval: number; // seconds
+  readingInterval: number;
+  autoPause: {
+    enabled: boolean;
+    stationaryThreshold: number; // seconds
+    minSpeedThreshold: number;   // meters per second
+    pauseOnBackground: boolean;
+    pauseOnGpsLost: boolean;
+    gpsLostTimeout: number;      // seconds
+  };
+  units: 'km' | 'miles';
   syncWithGoogle: boolean;
 }
+
