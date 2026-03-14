@@ -1,64 +1,202 @@
+// src/app/home/home.page.scss
+
 .dashboard-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    height: 100%;
-    padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 16px 12px;
+  min-height: 100%;
+  gap: 12px;
 }
 
+// ── IDLE STATE ──────────────────────────────────────────────
+.idle-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  gap: 12px;
+  text-align: center;
+  padding: 20px;
+}
+
+.gps-ring {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: var(--ion-color-primary-tint);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 0 12px rgba(var(--ion-color-primary-rgb), 0.12),
+              0 0 0 24px rgba(var(--ion-color-primary-rgb), 0.06);
+}
+
+.bike-icon {
+  font-size: 56px;
+  color: var(--ion-color-primary);
+}
+
+.idle-title {
+  font-size: 1.6rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.idle-subtitle {
+  color: var(--ion-color-medium);
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.start-btn {
+  margin-top: 12px;
+  --border-radius: 32px;
+  height: 56px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  min-width: 200px;
+}
+
+// ── ALERTS ──────────────────────────────────────────────────
+.alert-banner {
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  font-weight: 500;
+
+  &.danger {
+    background: rgba(var(--ion-color-danger-rgb), 0.15);
+    color: var(--ion-color-danger);
+  }
+
+  &.warning {
+    background: rgba(var(--ion-color-warning-rgb), 0.15);
+    color: var(--ion-color-warning-shade);
+  }
+
+  &.pulse {
+    animation: pulse-opacity 2s ease-in-out infinite;
+  }
+}
+
+@keyframes pulse-opacity {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.6; }
+}
+
+// ── ELAPSED TIMER ───────────────────────────────────────────
+.elapsed-display {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 8px 0;
+}
+
+.elapsed-time {
+  font-size: 3rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+.elapsed-label {
+  font-size: 0.75rem;
+  color: var(--ion-color-medium);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+// ── STATS GRID ───────────────────────────────────────────────
 .stats-grid {
-    display: grid;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  width: 100%;
+
+  @media (max-width: 360px) {
     grid-template-columns: repeat(2, 1fr);
-    gap: 10px;
-    width: 100%;
-    margin-bottom: 40px;
+  }
 }
 
 .stat-card {
-    text-align: center;
-    margin: 0;
-    padding: 15px;
+  background: var(--ion-item-background, var(--ion-background-color));
+  border-radius: 12px;
+  padding: 12px 8px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+
+  .stat-value {
+    font-size: 1.35rem;
+    font-weight: 700;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .stat-label {
+    font-size: 0.7rem;
+    color: var(--ion-color-medium);
+    min-height: 12px;
+  }
+
+  .stat-name {
+    font-size: 0.72rem;
+    color: var(--ion-color-medium);
+    margin-top: 2px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
 }
 
-.action-center {
-    width: 100%;
-    display: flex;
-    justify-content: center;
+// ── PAUSE REASON ─────────────────────────────────────────────
+.pause-reason-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  background: rgba(var(--ion-color-warning-rgb), 0.15);
+  color: var(--ion-color-warning-shade);
+  font-size: 0.85rem;
+  font-weight: 500;
 }
 
-.tracking-actions {
-    display: flex;
-    gap: 20px;
-
-    ion-button {
-        --border-radius: 50%;
-        width: 80px;
-        height: 80px;
-        font-size: 1.5em;
-    }
+// ── AUTO RESUME ──────────────────────────────────────────────
+.auto-resume {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin: 20px 0;
+  color: var(--ion-color-medium);
 }
 
-.gps-lost-banner {
-    background-color: var(--ion-color-danger);
-    color: white;
-    width: 100%;
-    padding: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    border-radius: 8px;
-    margin-bottom: 20px;
-    animation: pulse 2s infinite;
+// ── ACTION BUTTONS ───────────────────────────────────────────
+.action-bar {
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+  margin-top: auto;
+  padding: 16px 0;
 }
 
-@keyframes pulse {
-    0% { opacity: 1; }
-    50% { opacity: 0.7; }
-    100% { opacity: 1; }
-}
+.action-btn {
+  --border-radius: 50%;
+  width: 72px;
+  height: 72px;
+  font-size: 1.6rem;
 
-ion-chip {
-    margin-top: 20px;
+  &.resume { --background: var(--ion-color-success); }
+  &.pause  { --background: var(--ion-color-warning); }
+  &.stop   { --background: var(--ion-color-danger);  }
 }

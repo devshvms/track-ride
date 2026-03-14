@@ -1,15 +1,72 @@
-scss
+// src/app/home/ride-summary/ride-summary.component.scss
+// FIX: File previously started with literal "scss" text — compile error removed.
+
+.summary-overlay {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.date-line {
+  font-size: 0.85rem;
+  margin: 4px 0 12px;
+}
+
+.hero-distance {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 6px;
+  margin: 8px 0 16px;
+
+  .dist-value {
+    font-size: 4rem;
+    font-weight: 800;
+    line-height: 1;
+  }
+
+  .dist-unit {
+    font-size: 1.6rem;
+    color: var(--ion-color-medium);
+    font-weight: 500;
+  }
+}
+
+.stats-grid {
+  margin: 0 0 16px;
+}
+
+.stat-box {
+  background: var(--ion-item-background, var(--ion-background-color));
+  border-radius: 12px;
+  padding: 12px 8px;
+  text-align: center;
+  margin: 4px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+
+  .stat-val {
+    font-size: 1.4rem;
+    font-weight: 700;
+    margin: 0;
+  }
+
+  .stat-lbl {
+    font-size: 0.72rem;
+    color: var(--ion-color-medium);
+    margin: 2px 0 0;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+}
+
 .map-container {
+  position: relative;
   width: 100%;
   height: 200px;
-  position: relative;
-  border-radius: 12px;
+  border-radius: 14px;
   overflow: hidden;
-  margin: 15px 0;
-  background: #f0f0f0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  background: var(--ion-color-light);
+  margin: 0 0 16px;
 
   .static-map {
     width: 100%;
@@ -17,9 +74,31 @@ scss
     object-fit: cover;
   }
 
-  .map-stats-overlay {
+  .map-overlay-badge {
     position: absolute;
     bottom: 10px;
     right: 10px;
   }
+}
+
+.breaks-section {
+  margin-bottom: 16px;
+
+  .section-title {
+    font-size: 1rem;
+    font-weight: 600;
+    margin: 0 0 8px;
+  }
+
+  ion-list {
+    border-radius: 12px;
+    overflow: hidden;
+  }
+}
+
+.summary-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-bottom: 24px;
 }

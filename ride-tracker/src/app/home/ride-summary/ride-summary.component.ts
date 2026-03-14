@@ -1,122 +1,77 @@
-import { Component, OnInit } from '@angular/core';
+// src/app/home/ride-summary/ride-summary.component.ts
+import { Component, EventEmitter, Output } from '@angular/core';
 import { RideService } from '../../services/ride.service';
-import { GpsPoint, Ride } from '../../models/ride.model';
+import { Ride } from '../../models/ride.model';
 import { Observable } from 'rxjs';
-import { map } from 'rxjs/operators';
 import { IonicModule } from '@ionic/angular';
 import { CommonModule } from '@angular/common';
+import { RideUtils } from '../../utils/ride-calculations';
+import { SpeedPipe, DistancePipe, DurationPipe } from '../../pipes/duration.pipe';
 
 @Component({
   selector: 'app-ride-summary',
   templateUrl: './ride-summary.component.html',
   styleUrls: ['./ride-summary.component.scss'],
   standalone: true,
-  imports: [IonicModule, CommonModule]
+  imports: [IonicModule, CommonModule, SpeedPipe, DistancePipe, DurationPipe]
 })
-export class RideSummaryComponent implements OnInit {
+export class RideSummaryComponent {
+  /** FIX: emit event so parent (HomePage) can navigate to history tab */
+  @Output() viewHistory = new EventEmitter<void>();
+
   ride$: Observable<Ride | null>;
 
   constructor(private rideService: RideService) {
     this.ride$ = this.rideService.currentRide$;
   }
 
-  ngOnInit() {}
+  closeSummary(): void {
+    this.rideService.finishSummary();
+  }
 
-  closeSummary() {
-    this.rideService.finishSummary(); 
+  onViewInHistory(): void {
+    this.rideService.finishSummary(); // clears state first
+    this.viewHistory.emit();          // parent navigates
   }
 
   getBreakCount(ride: Ride): number {
-    return ride.breaks ? ride.breaks.length : 0;
+    return ride.breaks?.length ?? 0;
   }
 
-  /**
-   * Generates a static map URL representing the ride path.
-   * Using Google Static Maps API format.
-   */
+  getRideDuration(ride: Ride): number {
+    return ride.endTime ? ride.endTime - ride.startTime : 0;
+  }
+
   getStaticMapUrl(ride: Ride): string {
-    if (!ride.points || ride.points.length === 0) {
-      return 'assets/map-placeholder.png';
-    }
-
-    const baseUrl = 'https://maps.googleapis.com/maps/api/staticmap';
-    const size = '600x300';
-    const apiKey = 'YOUR_GOOGLE_MAPS_API_KEY'; // !!! IMPORTANT: Replace with your actual Google Maps API Key !!!
-    
-    // Create a simplified path string from GPS points
-    // We pick a maximum of 100 points to keep the URL length safe and map visually clear
-    const maxPathPoints = 100;
-    const pathPoints = this.simplifyPath(ride.points, maxPathPoints);
-    const pathParam = `path=color:0xff0000ff|weight:5|${pathPoints}`;
-
-    // Add markers for start and end points
-    const startPoint = ride.points[0];
-    const endPoint = ride.points[ride.points.length - 1];
-    const markersParam = `markers=color:green%7Clabel:S%7C${startPoint.latitude},${startPoint.longitude}&markers=color:red%7Clabel:E%7C${endPoint.latitude},${endPoint.longitude}`;
-
-    return `${baseUrl}?size=${size}&${pathParam}&${markersParam}&key=${apiKey}`;
+    return RideUtils.getStaticMapUrl(ride.points, 'YOUR_GOOGLE_MAPS_API_KEY');
   }
 
-  private simplifyPath(points: GpsPoint[], maxPoints: number): string {
-    if (points.length <= maxPoints) {
-      return points.map(p => `${p.latitude},${p.longitude}`).join('|');
-    }
-    const step = Math.floor(points.length / maxPoints);
-    const simplified = [];
-    for (let i = 0; i < points.length; i += step) {
-      simplified.push(points[i]);
-    }
-    // Ensure the last point is always included
-    if (simplified[simplified.length - 1] !== points[points.length - 1]) {
-      simplified.push(points[points.length - 1]);
-    }
-    return simplified.map(p => `${p.latitude},${p.longitude}`).join('|');
+  onMapError(event: Event): void {
+    (event.target as HTMLImageElement).src = 'assets/icon/favicon.png';
   }
 
-  onMapError(event: any) {
-    console.error('Error loading map image:', event);
-    // Optionally, replace with a local placeholder image
-    event.target.src = 'assets/map-placeholder.png'; 
-  }
+  async shareRide(ride: Ride): Promise<void> {
+    const distKm     = (ride.totalDistance / 1000).toFixed(2);
+    const avgKph     = RideUtils.msToKph(ride.averageSpeed).toFixed(1);
+    const maxKph     = RideUtils.msToKph(ride.maxSpeed).toFixed(1);
+    const duration   = RideUtils.formatDuration(this.getRideDuration(ride));
+    const breakCount = this.getBreakCount(ride);
 
-  async shareRide(ride: Ride) {
-    const totalDistanceKm = (ride.totalDistance / 1000).toFixed(2);
-    const avgSpeedKmh = (ride.averageSpeed * 3.6).toFixed(1);
-    const rideDuration = this.getRideDurationFormatted(ride);
-
-    const summary = `I just finished a ${totalDistanceKm} km ride in ${rideDuration}! Average Speed: ${avgSpeedKmh} km/h. #RideTracker`;
-    
-    // You might want to generate a specific URL for the ride if it's hosted online
-    // For now, we'll use a placeholder or the current page URL
-    const shareUrl = window.location.href; // Placeholder, ideally a unique ride URL
+    const text =
+      `🚴 Ride Summary\n` +
+      `📏 ${distKm} km in ${duration}\n` +
+      `⚡ Avg: ${avgKph} km/h  |  Max: ${maxKph} km/h\n` +
+      `☕ ${breakCount} break${breakCount !== 1 ? 's' : ''}\n` +
+      `#RideTracker`;
 
     if (navigator.share) {
       try {
-        await navigator.share({
-          title: 'My Ride Summary',
-          text: summary,
-          url: shareUrl
-        });
-      } catch (err) {
-        console.error('Error sharing ride:', err);
-      }
+        await navigator.share({ title: 'My Ride Summary', text });
+      } catch { /* user cancelled */ }
     } else {
-      // Fallback for browsers that do not support Web Share API
-      alert(`Share this ride:\n\n${summary}\n${shareUrl}`);
+      // Fallback
+      await navigator.clipboard.writeText(text).catch(() => {});
+      alert('Summary copied to clipboard!');
     }
-  }
-
-  private getRideDurationFormatted(ride: Ride): string {
-    if (!ride.endTime) return 'N/A';
-    const durationSeconds = (ride.endTime - ride.startTime) / 1000;
-    const hours = Math.floor(durationSeconds / 3600);
-    const minutes = Math.floor((durationSeconds % 3600) / 60);
-    const seconds = Math.floor(durationSeconds % 60);
-
-    let durationString = '';
-    if (hours > 0) durationString += `${hours}h `;
-    if (minutes > 0) durationString += `${minutes}m `;
-    durationString += `${seconds}s`;
-    return durationString.trim();
   }
 }

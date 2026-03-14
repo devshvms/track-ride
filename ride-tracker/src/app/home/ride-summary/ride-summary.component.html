@@ -1,7 +1,9 @@
+<!-- src/app/home/ride-summary/ride-summary.component.html -->
 <div class="summary-overlay" *ngIf="ride$ | async as ride">
+
   <ion-header>
     <ion-toolbar color="success">
-      <ion-title>Ride Summary</ion-title>
+      <ion-title>Ride Complete 🎉</ion-title>
       <ion-buttons slot="end">
         <ion-button (click)="closeSummary()">Done</ion-button>
       </ion-buttons>
@@ -9,61 +11,103 @@
   </ion-header>
 
   <ion-content class="ion-padding">
-    <div class="summary-card">
-      <ion-text color="medium">
-        <p class="ion-text-center">{{ ride.startTime | date:'EEEE, MMM d, y' }}</p>
-      </ion-text>
 
-      <h1 class="total-dist ion-text-center">
-        {{ ride.totalDistance / 1000 | number:'1.2-2' }} <span>km</span>
-      </h1>
+    <ion-text color="medium">
+      <p class="ion-text-center date-line">
+        {{ ride.startTime | date:'EEEE, MMM d, y · h:mm a' }}
+      </p>
+    </ion-text>
 
-      <ion-grid>
-        <ion-row>
-          <ion-col size="6">
-            <div class="stat-box">
-              <ion-label>Avg Speed</ion-label>
-              <p>{{ ride.averageSpeed | number:'1.1-1' }} km/h</p>
-            </div>
-          </ion-col>
-          <ion-col size="6">
-            <div class="stat-box">
-              <ion-label>Max Speed</ion-label>
-              <p>{{ ride.maxSpeed * 3.6 | number:'1.1-1' }} km/h</p>
-            </div>
-          </ion-col>
-          <ion-col size="6">
-            <div class="stat-box">
-              <ion-label>Breaks</ion-label>
-              <p>{{ getBreakCount(ride) }}</p>
-            </div>
-          </ion-col>
-          <ion-col size="6">
-            <div class="stat-box">
-              <ion-label>Duration</ion-label>
-              <p>{{ (ride.endTime! - ride.startTime) / 60000 | number:'1.0-0' }} min</p>
-            </div>
-          </ion-col>
-        </ion-row>
-      </ion-grid>
+    <!-- Hero distance -->
+    <div class="hero-distance">
+      <span class="dist-value">{{ ride.totalDistance | distance }}</span>
+      <span class="dist-unit">km</span>
+    </div>
 
-      <!-- Placeholder for Map/Route Plot (README Line 20) -->
-      <!-- Replace your map-placeholder div with this -->
-      <div class="map-container" *ngIf="ride">
-        <img [src]="getStaticMapUrl(ride)" alt="Ride Route Map" class="static-map" (error)="onMapError($event)">
+    <!-- Stats grid -->
+    <ion-grid class="stats-grid">
+      <ion-row>
+        <ion-col size="6">
+          <div class="stat-box">
+            <p class="stat-val">{{ ride.averageSpeed | speed }}</p>
+            <p class="stat-lbl">Avg Speed (km/h)</p>
+          </div>
+        </ion-col>
+        <!-- FIX: was ride.maxSpeed * 3.6 (treating as m/s — correct); now uses pipe consistently -->
+        <ion-col size="6">
+          <div class="stat-box">
+            <p class="stat-val">{{ ride.maxSpeed | speed }}</p>
+            <p class="stat-lbl">Max Speed (km/h)</p>
+          </div>
+        </ion-col>
+        <ion-col size="6">
+          <div class="stat-box">
+            <p class="stat-val">{{ getBreakCount(ride) }}</p>
+            <p class="stat-lbl">Breaks</p>
+          </div>
+        </ion-col>
+        <ion-col size="6">
+          <div class="stat-box">
+            <p class="stat-val">{{ getRideDuration(ride) | duration }}</p>
+            <p class="stat-lbl">Duration</p>
+          </div>
+        </ion-col>
+        <ion-col size="6">
+          <div class="stat-box">
+            <p class="stat-val">{{ ride.points.length }}</p>
+            <p class="stat-lbl">GPS Points</p>
+          </div>
+        </ion-col>
+        <ion-col size="6">
+          <div class="stat-box">
+            <p class="stat-val">{{ (ride.totalPausedTime ?? 0) | duration }}</p>
+            <p class="stat-lbl">Paused Time</p>
+          </div>
+        </ion-col>
+      </ion-row>
+    </ion-grid>
 
-        <div class="map-stats-overlay">
-          <ion-badge color="dark">{{ ride.points.length }} GPS Points</ion-badge>
-        </div>
+    <!-- Route map -->
+    <div class="map-container" *ngIf="ride.points.length > 0">
+      <img
+        [src]="getStaticMapUrl(ride)"
+        alt="Ride route map"
+        class="static-map"
+        (error)="onMapError($event)" />
+      <div class="map-overlay-badge">
+        <ion-badge color="dark">{{ ride.points.length }} pts</ion-badge>
       </div>
+    </div>
 
-      <!-- Update the Share Button -->
-      <ion-button expand="block" fill="outline" class="ion-margin-top" (click)="shareRide(ride)">
+    <!-- Breaks log -->
+    <div class="breaks-section" *ngIf="getBreakCount(ride) > 0">
+      <h3 class="section-title">Breaks</h3>
+      <ion-list lines="none">
+        <ion-item *ngFor="let b of ride.breaks; let i = index">
+          <ion-icon name="pause-circle-outline" slot="start" color="warning"></ion-icon>
+          <ion-label>
+            <h3>{{ b.reason | titlecase }}</h3>
+            <p>{{ b.startTime | date:'h:mm a' }}
+              <span *ngIf="b.duration"> · {{ b.duration | duration }}</span>
+            </p>
+          </ion-label>
+        </ion-item>
+      </ion-list>
+    </div>
+
+    <!-- Action buttons -->
+    <div class="summary-actions">
+      <ion-button expand="block" color="primary" (click)="shareRide(ride)">
         <ion-icon slot="start" name="share-social-outline"></ion-icon>
         Share Ride
       </ion-button>
 
-
+      <!-- FIX: "View in History" button was missing from workflow RIDE_SUMMARY state -->
+      <ion-button expand="block" fill="outline" color="primary" (click)="onViewInHistory()">
+        <ion-icon slot="start" name="time-outline"></ion-icon>
+        View in History
+      </ion-button>
     </div>
+
   </ion-content>
 </div>

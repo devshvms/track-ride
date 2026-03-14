@@ -1,71 +1,85 @@
-import { Component, OnInit } from '@angular/core';
+// src/app/home/home.page.ts
+import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Router } from '@angular/router';
 import { RideService } from '../services/ride.service';
 import { RideState } from '../models/ride-state.model';
-import { Observable } from 'rxjs';
+import { Observable, Subscription } from 'rxjs';
 import { Ride } from '../models/ride.model';
 import { ModalController, IonicModule } from '@ionic/angular';
 import { PauseModalComponent } from './pause-modal/pause-modal.component';
 import { StopModalComponent } from './stop-modal/stop-modal.component';
-import { RideSummaryComponent } from "./ride-summary/ride-summary.component";
+import { RideSummaryComponent } from './ride-summary/ride-summary.component';
 import { CommonModule } from '@angular/common';
-
+import { SpeedPipe, DistancePipe, DurationPipe } from '../pipes/duration.pipe';
+import { RideUtils } from '../utils/ride-calculations';
 
 @Component({
   selector: 'app-home',
   templateUrl: 'home.page.html',
   styleUrls: ['home.page.scss'],
   standalone: true,
-  imports: [IonicModule, RideSummaryComponent, PauseModalComponent, StopModalComponent, CommonModule],
+  imports: [IonicModule, RideSummaryComponent, CommonModule, SpeedPipe, DistancePipe, DurationPipe]
 })
-export class HomePage implements OnInit {
+export class HomePage implements OnInit, OnDestroy {
   currentState$: Observable<RideState> = this.rideService.currentState$;
   currentRide$: Observable<Ride | null> = this.rideService.currentRide$;
+  elapsed$: Observable<number> = this.rideService.elapsed$;
 
-  RideState = RideState; // Allow access to enum in template
+  RideState = RideState;
+
+  // For template: format elapsed seconds
+  formatElapsed = RideUtils.formatElapsed;
 
   constructor(
     private rideService: RideService,
-    private modalCtrl: ModalController // Inject ModalController
+    private modalCtrl: ModalController,
+    private router: Router
   ) {}
-  
-  async pauseRide() {
-    const modal = await this.modalCtrl.create({
-      component: PauseModalComponent,
-      breakpoints: [0, 0.5], // Half-sheet behavior
-      initialBreakpoint: 0.5
-    });
-    
-    await modal.present();
-    const { data, role } = await modal.onWillDismiss();
-    
-    if (role === 'confirm' && data) {
-      this.rideService.pauseRide(data); // Pass the specific reason
-    }
-  }
 
-  ngOnInit() {}
+  ngOnInit(): void {}
+  ngOnDestroy(): void {}
 
-  startRide() {
+  startRide(): void {
     this.rideService.startRide();
   }
 
-  resumeRide() {
+  resumeRide(): void {
     this.rideService.resumeRide();
   }
 
-  async stopRide() {
+  async pauseRide(): Promise<void> {
+    const modal = await this.modalCtrl.create({
+      component: PauseModalComponent,
+      breakpoints: [0, 0.55],
+      initialBreakpoint: 0.55
+    });
+    await modal.present();
+    const { data, role } = await modal.onWillDismiss();
+    if (role === 'confirm' && data) {
+      this.rideService.pauseRide(data);
+    }
+  }
+
+  async stopRide(): Promise<void> {
     const modal = await this.modalCtrl.create({
       component: StopModalComponent,
-      cssClass: 'auto-height-modal', // Optional: define this in global.scss for small modals
-      breakpoints: [0, 0.4],
-      initialBreakpoint: 0.4
+      breakpoints: [0, 0.45],
+      initialBreakpoint: 0.45
     });
-
     await modal.present();
     const { role } = await modal.onWillDismiss();
 
-    if (role === 'confirm') {
+    if (role === 'save') {
+      // FIX: was 'confirm', now matches StopModalComponent role
       this.rideService.stopAndSaveRide();
+    } else if (role === 'discard') {
+      // FIX: NEW — Discard Ride action per workflow STOP_CONFIRMATION state
+      this.rideService.discardRide();
     }
+    // 'cancel' → do nothing, ride remains active
+  }
+
+  onViewInHistory(): void {
+    this.router.navigateByUrl('/tabs/history');
   }
 }

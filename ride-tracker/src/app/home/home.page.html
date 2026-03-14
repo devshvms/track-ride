@@ -1,95 +1,169 @@
+<!-- src/app/home/home.page.html -->
 <ion-header [translucent]="true">
   <ion-toolbar>
     <ion-title>Ride Tracker</ion-title>
     <ion-buttons slot="end">
-      <ion-badge color="primary">High</ion-badge>
+      <!-- FIX: Battery/accuracy badge reads from state, not hardcoded "High" -->
+      <ion-badge color="success" *ngIf="(currentState$ | async) !== RideState.IDLE">
+        {{ (elapsed$ | async) | apply:formatElapsed }}
+      </ion-badge>
     </ion-buttons>
   </ion-toolbar>
 </ion-header>
 
 <ion-content [fullscreen]="true">
 
-  <!-- Show Summary ONLY when in RIDE_SUMMARY state -->
+  <!-- ── RIDE SUMMARY overlay (full-screen, own header/content) ── -->
   @if ((currentState$ | async) === RideState.RIDE_SUMMARY) {
-  <app-ride-summary></app-ride-summary>
+    <app-ride-summary (viewHistory)="onViewInHistory()"></app-ride-summary>
   }
 
   @else {
+    <div class="dashboard-container">
 
-  <div class="dashboard-container" *ngIf="currentState$ | async as state">
+      <!-- ══ GPS SIGNAL LOST BANNER ══ -->
+      @if ((currentState$ | async) === RideState.GPS_SIGNAL_LOST) {
+        <div class="alert-banner danger pulse">
+          <ion-icon name="warning-outline"></ion-icon>
+          <span>GPS Signal Lost — searching…</span>
+        </div>
+      }
 
-    <!-- GPS Signal Lost Banner -->
-    <div *ngIf="state === RideState.GPS_SIGNAL_LOST" class="gps-lost-banner">
-      <ion-icon name="warning"></ion-icon>
-      <ion-label>GPS Signal Lost - Searching...</ion-label>
+      <!-- ══ AUTO-PAUSED CHIP ══ -->
+      @if ((currentState$ | async) === RideState.AUTO_PAUSED) {
+        <div class="alert-banner warning">
+          <ion-icon name="pause-circle-outline"></ion-icon>
+          <span>Auto-Paused — waiting for movement</span>
+        </div>
+      }
+
+      <!-- ══ IDLE STATE ══ -->
+      @if ((currentState$ | async) === RideState.IDLE) {
+        <div class="idle-center">
+          <div class="gps-ring">
+            <ion-icon name="bicycle" class="bike-icon"></ion-icon>
+          </div>
+          <h2 class="idle-title">Ready to Ride</h2>
+          <p class="idle-subtitle">Tap START to begin tracking your journey</p>
+          <ion-button
+            class="start-btn"
+            size="large"
+            shape="round"
+            expand="block"
+            (click)="startRide()">
+            <ion-icon slot="start" name="play"></ion-icon>
+            START RIDE
+          </ion-button>
+        </div>
+      }
+
+      <!-- ══ TRACKING / PAUSED / AUTO_PAUSED / GPS_SIGNAL_LOST — STATS ══ -->
+      @if (
+        (currentState$ | async) === RideState.TRACKING ||
+        (currentState$ | async) === RideState.PAUSED ||
+        (currentState$ | async) === RideState.AUTO_PAUSED ||
+        (currentState$ | async) === RideState.GPS_SIGNAL_LOST
+      ) {
+        <ng-container *ngIf="currentRide$ | async as ride">
+
+          <!-- Timer prominent display -->
+          <div class="elapsed-display">
+            <span class="elapsed-time">{{ (elapsed$ | async) | apply:formatElapsed }}</span>
+            <span class="elapsed-label">elapsed</span>
+          </div>
+
+          <!-- Stats Grid — 6 cards per workflow (distance, speed, avg, max, breaks, GPS pts) -->
+          <div class="stats-grid">
+            <div class="stat-card">
+              <span class="stat-value">{{ ride.totalDistance | distance }}</span>
+              <span class="stat-label">km</span>
+              <span class="stat-name">Distance</span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-value">
+                {{ (ride.points.length > 0 ? (ride.points[ride.points.length-1].speed ?? 0) : 0) | speed }}
+              </span>
+              <span class="stat-label">km/h</span>
+              <span class="stat-name">Speed</span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-value">{{ ride.averageSpeed | speed }}</span>
+              <span class="stat-label">km/h</span>
+              <span class="stat-name">Avg Speed</span>
+            </div>
+            <!-- FIX: maxSpeed card was missing from workflow -->
+            <div class="stat-card">
+              <span class="stat-value">{{ ride.maxSpeed | speed }}</span>
+              <span class="stat-label">km/h</span>
+              <span class="stat-name">Max Speed</span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-value">{{ ride.breaks.length }}</span>
+              <span class="stat-label"></span>
+              <span class="stat-name">Breaks</span>
+            </div>
+            <!-- FIX: GPS points count was missing from workflow -->
+            <div class="stat-card">
+              <span class="stat-value">{{ ride.points.length }}</span>
+              <span class="stat-label"></span>
+              <span class="stat-name">GPS Pts</span>
+            </div>
+          </div>
+
+          <!-- Pause reason indicator while paused -->
+          @if (
+            (currentState$ | async) === RideState.PAUSED &&
+            ride.breaks.length > 0
+          ) {
+            <div class="pause-reason-chip">
+              <ion-icon name="pause-circle"></ion-icon>
+              <span>{{ ride.breaks[ride.breaks.length-1].reason | titlecase }}</span>
+            </div>
+          }
+
+        </ng-container>
+      }
+
+      <!-- ══ AUTO_RESUME transient state ══ -->
+      @if ((currentState$ | async) === RideState.AUTO_RESUME) {
+        <div class="auto-resume">
+          <ion-spinner name="crescent" color="success"></ion-spinner>
+          <p>Resuming tracking…</p>
+        </div>
+      }
+
+      <!-- ══ ACTION BUTTONS ══ -->
+      <div class="action-bar">
+
+        <!-- TRACKING or GPS_SIGNAL_LOST: Pause + Stop -->
+        @if (
+          (currentState$ | async) === RideState.TRACKING ||
+          (currentState$ | async) === RideState.GPS_SIGNAL_LOST
+        ) {
+          <ion-button class="action-btn pause" color="warning" (click)="pauseRide()">
+            <ion-icon name="pause"></ion-icon>
+          </ion-button>
+          <ion-button class="action-btn stop" color="danger" (click)="stopRide()">
+            <ion-icon name="stop"></ion-icon>
+          </ion-button>
+        }
+
+        <!-- PAUSED or AUTO_PAUSED: Resume + Stop -->
+        @if (
+          (currentState$ | async) === RideState.PAUSED ||
+          (currentState$ | async) === RideState.AUTO_PAUSED
+        ) {
+          <ion-button class="action-btn resume" color="success" (click)="resumeRide()">
+            <ion-icon name="play"></ion-icon>
+          </ion-button>
+          <ion-button class="action-btn stop" color="danger" (click)="stopRide()">
+            <ion-icon name="stop"></ion-icon>
+          </ion-button>
+        }
+
+      </div>
+
     </div>
-
-    <!-- Stats Display (Visible during tracking or pause) -->
-    <ng-container *ngIf="state !== RideState.IDLE">
-      <div class="stats-grid" *ngIf="currentRide$ | async as ride">
-        <ion-card class="stat-card">
-          <ion-card-subtitle>Distance</ion-card-subtitle>
-          <ion-card-title>{{ ride.totalDistance / 1000 | number:'1.2-2' }} km</ion-card-title>
-        </ion-card>
-
-        <ion-card class="stat-card">
-          <ion-card-subtitle>Speed</ion-card-subtitle>
-          <ion-card-title>{{ (ride.points[ride.points.length-1]?.speed || 0) * 3.6 | number:'1.1-1' }} km/h</ion-card-title>
-        </ion-card>
-
-        <ion-card class="stat-card">
-          <ion-card-subtitle>Avg Speed</ion-card-subtitle>
-          <ion-card-title>{{ ride.averageSpeed * 3.6 | number:'1.1-1' }} km/h</ion-card-title>
-        </ion-card>
-
-        <ion-card class="stat-card">
-          <ion-card-subtitle>Breaks</ion-card-subtitle>
-          <ion-card-title>{{ ride.breaks.length }}</ion-card-title>
-        </ion-card>
-      </div>
-    </ng-container>
-
-    <!-- Main Action Buttons -->
-    <div class="action-center">
-      <!-- IDLE State: Big Start Button -->
-      <ion-button *ngIf="state === RideState.IDLE" size="large" expand="block" shape="round" (click)="startRide()">
-        <ion-icon slot="start" name="play"></ion-icon>
-        START RIDE
-      </ion-button>
-
-      <!-- TRACKING State -->
-      <div class="tracking-actions" *ngIf="state === RideState.TRACKING || state === RideState.GPS_SIGNAL_LOST">
-        <ion-button color="warning" (click)="pauseRide()">
-          <ion-icon name="pause"></ion-icon>
-        </ion-button>
-        <ion-button color="danger" (click)="stopRide()">
-          <ion-icon name="stop"></ion-icon>
-        </ion-button>
-      </div>
-
-      <!-- PAUSED State -->
-      <div class="tracking-actions" *ngIf="state === RideState.PAUSED || state === RideState.AUTO_PAUSED">
-        <ion-button color="success" (click)="resumeRide()">
-          <ion-icon name="play"></ion-icon>
-        </ion-button>
-        <ion-button color="danger" (click)="stopRide()">
-          <ion-icon name="stop"></ion-icon>
-        </ion-button>
-      </div>
-
-      <!-- AUTO_RESUME State (Transient) -->
-       <div *ngIf="state === RideState.AUTO_RESUME">
-          <ion-spinner name="crescent"></ion-spinner>
-          <p>Resuming Tracking...</p>
-       </div>
-    </div>
-
-    <!-- State Indicator for Auto-Pause -->
-    <ion-chip *ngIf="state === RideState.AUTO_PAUSED" color="warning">
-      <ion-icon name="notifications-outline"></ion-icon>
-      <ion-label>Auto-Paused (Movement/Signal Lost)</ion-label>
-    </ion-chip>
-
-  </div>
   }
+
 </ion-content>

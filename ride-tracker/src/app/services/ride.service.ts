@@ -1,3 +1,4 @@
+// src/app/services/ride.service.ts
 import { Injectable } from '@angular/core';
 import { BehaviorSubject, Subscription } from 'rxjs';
 import { RideState } from '../models/ride-state.model';
@@ -17,9 +18,15 @@ export class RideService {
   private currentRideSubject = new BehaviorSubject<Ride | null>(null);
   public currentRide$ = this.currentRideSubject.asObservable();
 
-  private locationSubscription?: Subscription;
-  private autoPauseSubscription?: Subscription;
-  private gpsMonitorSubscription?: Subscription;
+  /** Emits elapsed tracking seconds (pauses excluded) every second when TRACKING. */
+  private elapsedSubject = new BehaviorSubject<number>(0);
+  public elapsed$ = this.elapsedSubject.asObservable();
+
+  private locationSub?: Subscription;
+  private autoPauseSub?: Subscription;
+  private gpsMonitorSub?: Subscription;
+  private elapsedTimer?: ReturnType<typeof setInterval>;
+  private pauseStartTime?: number;
 
   constructor(
     private settings: SettingsService,
@@ -29,7 +36,7 @@ export class RideService {
     private autoPause: AutoPauseService
   ) {}
 
-  startRide() {
+  startRide(): void {
     const newRide: Ride = {
       id: Date.now().toString(),
       startTime: Date.now(),
@@ -37,152 +44,181 @@ export class RideService {
       breaks: [],
       totalDistance: 0,
       averageSpeed: 0,
-      maxSpeed: 0
+      maxSpeed: 0,
+      totalPausedTime: 0
     };
     this.currentRideSubject.next(newRide);
+    this.elapsedSubject.next(0);
     this.stateSubject.next(RideState.TRACKING);
+    this.autoPause.startListening();
     this.startLocationProcessing();
     this.initTrackingSubscriptions();
+    this.startElapsedTimer();
+    this.gpsMonitor.resetStatus();
   }
 
-  private startLocationProcessing() {
+  private startElapsedTimer(): void {
+    this.stopElapsedTimer();
+    this.elapsedTimer = setInterval(() => {
+      const state = this.stateSubject.value;
+      if (state === RideState.TRACKING || state === RideState.GPS_SIGNAL_LOST) {
+        this.elapsedSubject.next(this.elapsedSubject.value + 1);
+      }
+    }, 1000);
+  }
+
+  private stopElapsedTimer(): void {
+    if (this.elapsedTimer) {
+      clearInterval(this.elapsedTimer);
+      this.elapsedTimer = undefined;
+    }
+  }
+
+  private startLocationProcessing(): void {
     this.location.startTracking();
-    this.locationSubscription = this.location.location$.subscribe(point => {
-      this.autoPause.evaluateMovement(point.speed);
+    this.locationSub = this.location.location$.subscribe(point => {
+      this.autoPause.evaluateMovement(point.speed ?? undefined);
       if (this.stateSubject.value === RideState.TRACKING) {
         this.processNewPoint(point);
       }
     });
   }
 
-  private initTrackingSubscriptions() {
-    // Listen to GPS lost/restored
-    this.gpsMonitorSubscription = this.gpsMonitor.status$.subscribe(status => {
-      this.handleGpsStatusChange(status.isLost);
-    });
+  private initTrackingSubscriptions(): void {
+    this.gpsMonitorSub = this.gpsMonitor.status$.subscribe(status =>
+      this.handleGpsStatusChange(status.isLost)
+    );
 
-    // Listen to Auto-Pause events
-    this.autoPauseSubscription = this.autoPause.events$.subscribe(event => {
+    this.autoPauseSub = this.autoPause.events$.subscribe(event => {
+      const state = this.stateSubject.value;
       if (event.pause) {
-        if (this.stateSubject.value === RideState.TRACKING || this.stateSubject.value === RideState.GPS_SIGNAL_LOST) {
-          this.pauseRide(event.reason || 'auto:stationary');
+        if (state === RideState.TRACKING || state === RideState.GPS_SIGNAL_LOST) {
+          this.pauseRide(event.reason ?? 'auto:stationary');
         }
       } else {
-        if (this.stateSubject.value === RideState.AUTO_PAUSED) {
+        if (state === RideState.AUTO_PAUSED) {
           this.resumeRide(true);
         }
       }
     });
   }
 
-  private handleGpsStatusChange(isLost: boolean) {
-    const currentState = this.stateSubject.value;
-    
-    if (isLost) {
-      if (currentState === RideState.TRACKING) {
-        this.stateSubject.next(RideState.GPS_SIGNAL_LOST);
-      }
+  private handleGpsStatusChange(isLost: boolean): void {
+    const state = this.stateSubject.value;
+    if (isLost && state === RideState.TRACKING) {
+      this.stateSubject.next(RideState.GPS_SIGNAL_LOST);
       this.autoPause.handleGpsStatus(true);
-    } else {
-      if (currentState === RideState.GPS_SIGNAL_LOST) {
-        this.stateSubject.next(RideState.TRACKING);
-      }
+    } else if (!isLost && state === RideState.GPS_SIGNAL_LOST) {
+      this.stateSubject.next(RideState.TRACKING);
       this.autoPause.handleGpsStatus(false);
     }
   }
 
-  private processNewPoint(newPoint: GpsPoint) {
+  private processNewPoint(newPoint: GpsPoint): void {
     const ride = this.currentRideSubject.value;
     if (!ride) return;
 
     const updatedPoints = [...ride.points, newPoint];
     let addedDistance = 0;
-
     if (ride.points.length > 0) {
-      const lastPoint = ride.points[ride.points.length - 1];
-      addedDistance = RideUtils.calculateDistance(lastPoint, newPoint);
+      addedDistance = RideUtils.calculateDistance(
+        ride.points[ride.points.length - 1],
+        newPoint
+      );
     }
 
     const totalDistance = ride.totalDistance + addedDistance;
-    const maxSpeed = Math.max(ride.maxSpeed, newPoint.speed || 0);
-    const avgSpeed = RideUtils.calculateAverageSpeed(totalDistance, ride.startTime, Date.now());
+    // FIX: maxSpeed stored in m/s (raw from GPS) — consistent with averageSpeed fix
+    const maxSpeed = Math.max(ride.maxSpeed, newPoint.speed ?? 0);
+    // FIX: calculateAverageSpeed now returns m/s
+    const averageSpeed = RideUtils.calculateAverageSpeed(
+      totalDistance,
+      ride.startTime,
+      Date.now(),
+      ride.totalPausedTime ?? 0
+    );
 
     this.currentRideSubject.next({
       ...ride,
       points: updatedPoints,
       totalDistance,
       maxSpeed,
-      averageSpeed: avgSpeed
+      averageSpeed
     });
   }
 
-  pauseRide(reason: PauseReason = 'break') {
+  pauseRide(reason: PauseReason = 'break'): void {
     const ride = this.currentRideSubject.value;
+    this.pauseStartTime = Date.now();
     if (ride) {
       const newBreak: RideBreak = {
-        startTime: Date.now(),
+        startTime: this.pauseStartTime,
         reason,
         location: ride.points[ride.points.length - 1]
       };
-      const updatedBreaks = [...ride.breaks, newBreak];
-      this.currentRideSubject.next({ ...ride, breaks: updatedBreaks });
+      this.currentRideSubject.next({ ...ride, breaks: [...ride.breaks, newBreak] });
     }
-
     const newState = reason.startsWith('auto:') ? RideState.AUTO_PAUSED : RideState.PAUSED;
     this.stateSubject.next(newState);
   }
 
-  resumeRide(isAuto: boolean = false) {
+  resumeRide(isAuto = false): void {
     const ride = this.currentRideSubject.value;
+    const now = Date.now();
     if (ride && ride.breaks.length > 0) {
-      const lastBreak = ride.breaks[ride.breaks.length - 1];
-      if (!lastBreak.endTime) {
-        lastBreak.endTime = Date.now();
+      const updatedBreaks = [...ride.breaks];
+      const last = updatedBreaks[updatedBreaks.length - 1];
+      if (!last.endTime) {
+        const duration = now - last.startTime;
+        updatedBreaks[updatedBreaks.length - 1] = { ...last, endTime: now, duration };
+        const totalPausedTime = (ride.totalPausedTime ?? 0) + duration;
+        this.currentRideSubject.next({ ...ride, breaks: updatedBreaks, totalPausedTime });
       }
     }
+    this.pauseStartTime = undefined;
 
     if (isAuto) {
       this.stateSubject.next(RideState.AUTO_RESUME);
-      // Transient state, move immediately to TRACKING or GPS_SIGNAL_LOST
       setTimeout(() => {
-        if (this.gpsMonitor.currentStatus.isLost) { // Use currentStatus getter
-          this.stateSubject.next(RideState.GPS_SIGNAL_LOST);
-        } else {
-          this.stateSubject.next(RideState.TRACKING);
-        }
-      }, 500); // Small delay to simulate transient state
+        const nextState = this.gpsMonitor.currentStatus.isLost
+          ? RideState.GPS_SIGNAL_LOST
+          : RideState.TRACKING;
+        this.stateSubject.next(nextState);
+      }, 500);
     } else {
       this.stateSubject.next(RideState.TRACKING);
     }
   }
 
-  stopAndSaveRide() {
+  stopAndSaveRide(): void {
     const ride = this.currentRideSubject.value;
     if (ride) {
-      const finalRide = { ...ride, endTime: Date.now() };
+      const finalRide: Ride = { ...ride, endTime: Date.now() };
       this.history.saveRide(finalRide);
       this.currentRideSubject.next(finalRide);
     }
-
     this.cleanupTracking();
     this.stateSubject.next(RideState.RIDE_SUMMARY);
   }
 
-  discardRide() {
+  discardRide(): void {
     this.cleanupTracking();
     this.currentRideSubject.next(null);
     this.stateSubject.next(RideState.IDLE);
   }
 
-  private cleanupTracking() {
-    this.location.stopTracking();
-    this.locationSubscription?.unsubscribe();
-    this.autoPauseSubscription?.unsubscribe();
-    this.gpsMonitorSubscription?.unsubscribe();
+  finishSummary(): void {
+    this.currentRideSubject.next(null);
+    this.elapsedSubject.next(0);
+    this.stateSubject.next(RideState.IDLE);
   }
 
-  finishSummary() {
-    this.currentRideSubject.next(null);
-    this.stateSubject.next(RideState.IDLE);
+  private cleanupTracking(): void {
+    this.location.stopTracking();
+    this.autoPause.stopListening();
+    this.stopElapsedTimer();
+    this.locationSub?.unsubscribe();
+    this.autoPauseSub?.unsubscribe();
+    this.gpsMonitorSub?.unsubscribe();
   }
 }
