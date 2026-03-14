@@ -5,16 +5,17 @@
 </ion-header>
 
 <ion-content [fullscreen]="true">
+  <ng-container *ngIf="units$ | async as units">
   <ion-list *ngIf="filteredRides$ | async as rides; else loading">
     
     <ion-item-sliding *ngFor="let ride of rides">
       <ion-item button (click)="openDetail(ride)">
         <ion-label>
           <h2>{{ ride.startTime | date:'mediumDate' }}</h2>
-          <p>{{ ride.totalDistance / 1000 | number:'1.2-2' }} km • {{ getDuration(ride) | duration }}</p>
+          <p>{{ ride.totalDistance | distance:units }} {{ units === 'miles' ? 'mi' : 'km' }} • {{ getDuration(ride) | duration }}</p>
         </ion-label>
         <ion-note slot="end">
-          {{ ride.averageSpeed * 3.6 | number:'1.1-1' }} km/h
+          {{ ride.averageSpeed | speed:units }} {{ units === 'miles' ? 'mph' : 'km/h' }}
         </ion-note>
         <ion-icon name="chevron-forward-outline" slot="end" color="medium"></ion-icon>
       </ion-item>
@@ -35,6 +36,7 @@
     </div>
 
   </ion-list>
+  </ng-container>
 
   <ng-template #loading>
     <div class="ion-padding ion-text-center">

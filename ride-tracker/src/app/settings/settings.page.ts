@@ -51,6 +51,25 @@ export class SettingsPage implements OnInit {
     this.settingsService.updateSettings({ [key]: value });
   }
 
+  onReadingIntervalChange(event: any) {
+    const value = Number(event.detail.value);
+    this.settingsService.updateSettings({ readingInterval: value });
+  }
+
+  onAutoPauseChange(key: 'stationaryThreshold' | 'minSpeedThreshold', event: any) {
+    const value = Number(event.detail.value);
+    this.settingsService.updateSettings({
+      autoPause: { ...this.settingsService.currentSettings.autoPause, [key]: value }
+    });
+  }
+
+  onAutoPauseToggle(key: 'pauseOnBackground' | 'pauseOnGpsLost', event: any) {
+    const value = event.detail.checked;
+    this.settingsService.updateSettings({
+      autoPause: { ...this.settingsService.currentSettings.autoPause, [key]: value }
+    });
+  }
+
   resetSettings() {
     this.settingsService.resetToDefaults();
   }

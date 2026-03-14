@@ -1,4 +1,5 @@
 <!-- src/app/home/ride-summary/ride-summary.component.html -->
+<ng-container *ngIf="units$ | async as units">
 <div class="summary-overlay" *ngIf="ride$ | async as ride">
 
   <ion-header>
@@ -20,8 +21,8 @@
 
     <!-- Hero distance -->
     <div class="hero-distance">
-      <span class="dist-value">{{ ride.totalDistance | distance }}</span>
-      <span class="dist-unit">km</span>
+      <span class="dist-value">{{ ride.totalDistance | distance:units }}</span>
+      <span class="dist-unit">{{ units === 'miles' ? 'mi' : 'km' }}</span>
     </div>
 
     <!-- Stats grid -->
@@ -29,15 +30,14 @@
       <ion-row>
         <ion-col size="6">
           <div class="stat-box">
-            <p class="stat-val">{{ ride.averageSpeed | speed }}</p>
-            <p class="stat-lbl">Avg Speed (km/h)</p>
+            <p class="stat-val">{{ ride.averageSpeed | speed:units }}</p>
+            <p class="stat-lbl">Avg Speed ({{ units === 'miles' ? 'mph' : 'km/h' }})</p>
           </div>
         </ion-col>
-        <!-- FIX: was ride.maxSpeed * 3.6 (treating as m/s — correct); now uses pipe consistently -->
         <ion-col size="6">
           <div class="stat-box">
-            <p class="stat-val">{{ ride.maxSpeed | speed }}</p>
-            <p class="stat-lbl">Max Speed (km/h)</p>
+            <p class="stat-val">{{ ride.maxSpeed | speed:units }}</p>
+            <p class="stat-lbl">Max Speed ({{ units === 'miles' ? 'mph' : 'km/h' }})</p>
           </div>
         </ion-col>
         <ion-col size="6">
@@ -111,3 +111,4 @@
 
   </ion-content>
 </div>
+</ng-container>

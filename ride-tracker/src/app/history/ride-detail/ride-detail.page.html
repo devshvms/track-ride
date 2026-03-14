@@ -15,6 +15,7 @@
   </ion-toolbar>
 </ion-header>
 
+<ng-container *ngIf="units$ | async as units">
 <ion-content [fullscreen]="true" *ngIf="ride">
 
   <!-- Map Section -->
@@ -26,8 +27,8 @@
   <div class="stats-section">
     <div class="stat-row">
       <div class="stat-item">
-        <span class="stat-value">{{ ride.totalDistance | distance }}</span>
-        <span class="stat-label">km</span>
+        <span class="stat-value">{{ ride.totalDistance | distance:units }}</span>
+        <span class="stat-label">{{ units === 'miles' ? 'mi' : 'km' }}</span>
       </div>
       <div class="stat-item">
         <span class="stat-value">{{ duration | duration }}</span>
@@ -36,12 +37,12 @@
     </div>
     <div class="stat-row">
       <div class="stat-item">
-        <span class="stat-value">{{ ride.averageSpeed | speed }}</span>
-        <span class="stat-label">Avg km/h</span>
+        <span class="stat-value">{{ ride.averageSpeed | speed:units }}</span>
+        <span class="stat-label">Avg {{ units === 'miles' ? 'mph' : 'km/h' }}</span>
       </div>
       <div class="stat-item">
-        <span class="stat-value">{{ ride.maxSpeed | speed }}</span>
-        <span class="stat-label">Max km/h</span>
+        <span class="stat-value">{{ ride.maxSpeed | speed:units }}</span>
+        <span class="stat-label">Max {{ units === 'miles' ? 'mph' : 'km/h' }}</span>
       </div>
     </div>
   </div>
@@ -112,3 +113,4 @@
   </div>
 
 </ion-content>
+</ng-container>

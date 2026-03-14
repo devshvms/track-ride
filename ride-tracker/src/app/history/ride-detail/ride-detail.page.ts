@@ -4,11 +4,14 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { IonicModule, AlertController } from '@ionic/angular';
 import { CommonModule } from '@angular/common';
 import { HistoryService } from '../../services/history.service';
+import { SettingsService } from '../../services/settings.service';
 import { Ride, GpsPoint } from '../../models/ride.model';
 import { RideUtils } from '../../utils/ride-calculations';
 import { SpeedPipe, DistancePipe, DurationPipe } from '../../pipes/duration.pipe';
 import { GpxExportService } from '../../services/gpx-export.service';
 import { MapImageExportService } from '../../services/map-image-export.service';
+import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
 import * as L from 'leaflet';
 
 @Component({
@@ -21,6 +24,7 @@ import * as L from 'leaflet';
 export class RideDetailPage implements OnInit, AfterViewInit, OnDestroy {
   ride: Ride | null = null;
   private map: L.Map | null = null;
+  units$: Observable<'km' | 'miles'>;
 
   constructor(
     private route: ActivatedRoute,
@@ -28,8 +32,11 @@ export class RideDetailPage implements OnInit, AfterViewInit, OnDestroy {
     private historyService: HistoryService,
     private alertCtrl: AlertController,
     private gpxExport: GpxExportService,
-    private mapImageExport: MapImageExportService
-  ) {}
+    private mapImageExport: MapImageExportService,
+    private settingsService: SettingsService
+  ) {
+    this.units$ = this.settingsService.settings$.pipe(map(s => s.units));
+  }
 
   ngOnInit(): void {
     const id = this.route.snapshot.paramMap.get('id');

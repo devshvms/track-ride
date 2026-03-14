@@ -6,81 +6,216 @@
 
 <ion-content [fullscreen]="true" class="settings-container">
   <ng-container *ngIf="settings$ | async as settings">
-    
-    <ion-list-header>
-      <ion-label>General</ion-label>
-    </ion-list-header>
+    <div class="settings-content">
 
-    <ion-list inset="true">
-      <ion-item>
-        <ion-label>Units</ion-label>
-        <ion-select [value]="settings.units" (ionChange)="onSelectChange('units', $event)">
-          <ion-select-option value="km">Kilometers</ion-select-option>
-          <ion-select-option value="miles">Miles</ion-select-option>
-        </ion-select>
-      </ion-item>
+      <!-- General Section -->
+      <div class="section-header">
+        <ion-icon name="settings-outline"></ion-icon>
+        <h2>General</h2>
+      </div>
 
-      <ion-item>
-        <ion-label>Auto-Pause</ion-label>
-        <ion-toggle [checked]="settings.autoPause.enabled" 
-                    (ionChange)="onToggleChange('autoPauseEnabled', $event)">
-        </ion-toggle>
-      </ion-item>
-    </ion-list>
+      <div class="settings-card">
+        <div class="segment-wrapper">
+          <div class="segment-label">
+            <h3>Units</h3>
+          </div>
+          <ion-segment [value]="settings.units" (ionChange)="onSelectChange('units', $event)">
+            <ion-segment-button value="km">Kilometers</ion-segment-button>
+            <ion-segment-button value="miles">Miles</ion-segment-button>
+          </ion-segment>
+        </div>
 
-    <ion-list-header>
-      <ion-label>Account & Sync</ion-label>
-    </ion-list-header>
+        <div class="toggle-row">
+          <div class="toggle-info">
+            <h3>Auto-Pause</h3>
+            <p>Automatically pause when stationary</p>
+          </div>
+          <ion-toggle [checked]="settings.autoPause.enabled" 
+                      (ionChange)="onToggleChange('autoPauseEnabled', $event)">
+          </ion-toggle>
+        </div>
 
-    <div class="auth-section">
-      <ng-container *ngIf="user$ | async as user; else loginBtn">
-        <ion-avatar>
-          <img [src]="user.photoUrl || 'assets/default-avatar.png'" alt="avatar" />
-        </ion-avatar>
-        <ion-label>
-          <h2>{{ user.name }}</h2>
-          <p>{{ user.email }}</p>
-        </ion-label>
-        <ion-button fill="outline" color="danger" (click)="logout()">Logout</ion-button>
-        <ion-list inset="true">
-          <ion-item>
-            <ion-label>Auto-sync Rides</ion-label>
-            <ion-toggle [checked]="settings.syncWithGoogle" 
-                        (ionChange)="onToggleChange('syncWithGoogle', $event)">
-            </ion-toggle>
-          </ion-item>
-      
-          <ion-item lines="none">
-            <ion-label>
-              <h3>Sync Status</h3>
-              <p *ngIf="lastSynced$ | async as last">Last synced: {{ last | date:'short' }}</p>
-            </ion-label>
-            
-            <div slot="end">
-              <ion-spinner *ngIf="(syncStatus$ | async) === 'syncing'"></ion-spinner>
-              <ion-button *ngIf="(syncStatus$ | async) !== 'syncing'" 
-                          fill="clear" (click)="triggerSync()">
-                <ion-icon name="sync-outline" slot="icon-only"></ion-icon>
+        <div class="toggle-row">
+          <div class="toggle-info">
+            <h3>Push Notifications</h3>
+            <p>Receive ride alerts and reminders</p>
+          </div>
+          <ion-toggle [checked]="settings.pushNotifications" 
+                      (ionChange)="onToggleChange('pushNotifications', $event)">
+          </ion-toggle>
+        </div>
+      </div>
+
+      <!-- GPS & Tracking Section -->
+      <div class="section-header">
+        <ion-icon name="locate-outline"></ion-icon>
+        <h2>GPS & Tracking</h2>
+      </div>
+
+      <div class="settings-card">
+        <div class="segment-wrapper">
+          <div class="segment-label">
+            <h3>GPS Accuracy</h3>
+            <p>Higher = more battery</p>
+          </div>
+          <ion-segment [value]="settings.gpsAccuracy" (ionChange)="onSelectChange('gpsAccuracy', $event)">
+            <ion-segment-button value="high">High</ion-segment-button>
+            <ion-segment-button value="balanced">Balanced</ion-segment-button>
+            <ion-segment-button value="low">Low</ion-segment-button>
+          </ion-segment>
+        </div>
+
+        <div class="segment-wrapper">
+          <div class="segment-label">
+            <h3>Reading Interval</h3>
+            <p>GPS point frequency</p>
+          </div>
+          <ion-segment [value]="settings.readingInterval" (ionChange)="onReadingIntervalChange($event)">
+            <ion-segment-button [value]="3">3s</ion-segment-button>
+            <ion-segment-button [value]="5">5s</ion-segment-button>
+            <ion-segment-button [value]="10">10s</ion-segment-button>
+            <ion-segment-button [value]="30">30s</ion-segment-button>
+          </ion-segment>
+        </div>
+      </div>
+
+      <!-- Auto-Pause Settings Section -->
+      <div class="section-header">
+        <ion-icon name="pause-circle-outline"></ion-icon>
+        <h2>Auto-Pause Settings</h2>
+      </div>
+
+      <div class="settings-card">
+        <div class="segment-wrapper">
+          <div class="segment-label">
+            <h3>Stationary Threshold</h3>
+            <p>Time before auto-pause</p>
+          </div>
+          <ion-segment [value]="settings.autoPause.stationaryThreshold" (ionChange)="onAutoPauseChange('stationaryThreshold', $event)">
+            <ion-segment-button [value]="15">15s</ion-segment-button>
+            <ion-segment-button [value]="30">30s</ion-segment-button>
+            <ion-segment-button [value]="60">1m</ion-segment-button>
+            <ion-segment-button [value]="120">2m</ion-segment-button>
+          </ion-segment>
+        </div>
+
+        <div class="segment-wrapper">
+          <div class="segment-label">
+            <h3>Min Speed</h3>
+            <p>Below this = stopped</p>
+          </div>
+          <ion-segment [value]="settings.autoPause.minSpeedThreshold" (ionChange)="onAutoPauseChange('minSpeedThreshold', $event)">
+            <ion-segment-button [value]="0.28">1 km/h</ion-segment-button>
+            <ion-segment-button [value]="0.55">2 km/h</ion-segment-button>
+            <ion-segment-button [value]="0.83">3 km/h</ion-segment-button>
+            <ion-segment-button [value]="1.39">5 km/h</ion-segment-button>
+          </ion-segment>
+        </div>
+
+        <div class="toggle-row">
+          <div class="toggle-info">
+            <h3>Pause on Background</h3>
+            <p>When app goes to background</p>
+          </div>
+          <ion-toggle [checked]="settings.autoPause.pauseOnBackground" 
+                      (ionChange)="onAutoPauseToggle('pauseOnBackground', $event)">
+          </ion-toggle>
+        </div>
+
+        <div class="toggle-row">
+          <div class="toggle-info">
+            <h3>Pause on GPS Lost</h3>
+            <p>When GPS signal is lost</p>
+          </div>
+          <ion-toggle [checked]="settings.autoPause.pauseOnGpsLost" 
+                      (ionChange)="onAutoPauseToggle('pauseOnGpsLost', $event)">
+          </ion-toggle>
+        </div>
+      </div>
+
+      <!-- Map Section -->
+      <div class="section-header">
+        <ion-icon name="map-outline"></ion-icon>
+        <h2>Map</h2>
+      </div>
+
+      <div class="settings-card">
+        <div class="segment-wrapper">
+          <div class="segment-label">
+            <h3>Map Type</h3>
+          </div>
+          <ion-segment [value]="settings.mapType" (ionChange)="onSelectChange('mapType', $event)">
+            <ion-segment-button value="street">Street</ion-segment-button>
+            <ion-segment-button value="satellite">Satellite</ion-segment-button>
+            <ion-segment-button value="terrain">Terrain</ion-segment-button>
+          </ion-segment>
+        </div>
+      </div>
+
+      <!-- Account & Sync Section -->
+      <div class="section-header">
+        <ion-icon name="cloud-outline"></ion-icon>
+        <h2>Account & Sync</h2>
+      </div>
+
+      <div class="auth-card">
+        <ng-container *ngIf="user$ | async as user; else loginBtn">
+          <div class="user-profile">
+            <ion-avatar>
+              <img [src]="user.photoUrl || 'assets/default-avatar.png'" alt="avatar" />
+            </ion-avatar>
+            <div class="user-info">
+              <h2>{{ user.name }}</h2>
+              <p>{{ user.email }}</p>
+            </div>
+          </div>
+          
+          <ion-button class="logout-btn" fill="outline" color="danger" (click)="logout()">
+            Logout
+          </ion-button>
+
+          <div class="sync-section">
+            <div class="toggle-row">
+              <div class="toggle-info">
+                <h3>Auto-sync Rides</h3>
+              </div>
+              <ion-toggle [checked]="settings.syncWithGoogle" 
+                          (ionChange)="onToggleChange('syncWithGoogle', $event)">
+              </ion-toggle>
+            </div>
+
+            <div class="sync-status">
+              <div class="status-info">
+                <h4>Sync Status</h4>
+                <p *ngIf="lastSynced$ | async as last">Last: {{ last | date:'short' }}</p>
+                <p *ngIf="!(lastSynced$ | async)">Never synced</p>
+              </div>
+              <ion-button class="sync-btn" fill="solid" color="primary" 
+                          [disabled]="(syncStatus$ | async) === 'syncing'"
+                          (click)="triggerSync()">
+                <ion-spinner *ngIf="(syncStatus$ | async) === 'syncing'" name="crescent"></ion-spinner>
+                <ion-icon *ngIf="(syncStatus$ | async) !== 'syncing'" name="sync-outline"></ion-icon>
+                <span *ngIf="(syncStatus$ | async) !== 'syncing'">Sync</span>
               </ion-button>
             </div>
-          </ion-item>
-        </ion-list>
-      </ng-container>
+          </div>
+        </ng-container>
 
-      <ng-template #loginBtn>
-        <ion-button class="google-btn" (click)="login()">
-          <ion-icon slot="start" name="logo-google"></ion-icon>
-          Sign in with Google
-        </ion-button>
-        <p class="ion-text-center ion-padding-horizontal">
-          Sign in to sync your rides with Google Drive.
-        </p>
-      </ng-template>
+        <ng-template #loginBtn>
+          <ion-button class="google-btn" expand="block" (click)="login()">
+            <ion-icon slot="start" name="logo-google"></ion-icon>
+            Sign in with Google
+          </ion-button>
+          <p class="login-hint">
+            Sign in to sync your rides across devices with Google Drive.
+          </p>
+        </ng-template>
+      </div>
+
+      <div class="version-info">
+        <p>Ride Tracker v1.0.0</p>
+      </div>
+
     </div>
-
-    <div class="version-info">
-      <p>Ride Tracker v1.0.0</p>
-    </div>
-
   </ng-container>
 </ion-content>

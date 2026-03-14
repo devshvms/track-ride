@@ -2,13 +2,14 @@
 import { Component, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
 import { HistoryService } from '../services/history.service';
+import { SettingsService } from '../services/settings.service';
 import { Ride } from '../models/ride.model';
 import { Observable, combineLatest, BehaviorSubject } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { IonicModule, AlertController } from '@ionic/angular';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { DurationPipe } from '../pipes/duration.pipe';
+import { DurationPipe, DistancePipe, SpeedPipe } from '../pipes/duration.pipe';
 import { RideUtils } from '../utils/ride-calculations';
 
 @Component({
@@ -16,7 +17,7 @@ import { RideUtils } from '../utils/ride-calculations';
   templateUrl: './history.page.html',
   styleUrls: ['./history.page.scss'],
   standalone: true,
-  imports: [IonicModule, CommonModule, FormsModule, DurationPipe]
+  imports: [IonicModule, CommonModule, FormsModule, DurationPipe, DistancePipe, SpeedPipe]
 })
 export class HistoryPage implements OnInit {
 
@@ -30,11 +31,13 @@ export class HistoryPage implements OnInit {
   private filtersSubject = new BehaviorSubject<void>(undefined);
 
   filteredRides$: Observable<Ride[]>;
+  units$: Observable<'km' | 'miles'>;
 
   constructor(
     private historyService: HistoryService,
     private router: Router,
-    private alertCtrl: AlertController
+    private alertCtrl: AlertController,
+    private settingsService: SettingsService
   ) {
     // Combine rides + filter changes reactively
     this.filteredRides$ = combineLatest([
@@ -43,6 +46,7 @@ export class HistoryPage implements OnInit {
     ]).pipe(
       map(([rides]) => this.applyFilters(rides))
     );
+    this.units$ = this.settingsService.settings$.pipe(map(s => s.units));
   }
 
   ngOnInit(): void {}

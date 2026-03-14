@@ -1,8 +1,10 @@
 // src/app/home/ride-summary/ride-summary.component.ts
 import { Component, EventEmitter, Output, AfterViewInit, OnDestroy } from '@angular/core';
 import { RideService } from '../../services/ride.service';
+import { SettingsService } from '../../services/settings.service';
 import { Ride } from '../../models/ride.model';
 import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
 import { IonicModule } from '@ionic/angular';
 import { CommonModule } from '@angular/common';
 import { RideUtils } from '../../utils/ride-calculations';
@@ -23,12 +25,15 @@ export class RideSummaryComponent implements AfterViewInit, OnDestroy {
   @Output() viewHistory = new EventEmitter<void>();
 
   ride$: Observable<Ride | null>;
+  units$: Observable<'km' | 'miles'>;
 
   constructor(
     private rideService: RideService,
-    private mapImageExport: MapImageExportService
+    private mapImageExport: MapImageExportService,
+    private settingsService: SettingsService
   ) {
     this.ride$ = this.rideService.currentRide$;
+    this.units$ = this.settingsService.settings$.pipe(map(s => s.units));
   }
 
   ngAfterViewInit(): void {

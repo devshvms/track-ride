@@ -119,12 +119,12 @@ ride-tracker/
 - [x] Auto-pause enable/disable toggle
 - [x] Google Sign-in UI (login/logout buttons)
 - [x] Sync status display with manual sync button
-- [ ] GPS accuracy configuration UI (High/Balanced/Low)
-- [ ] Reading interval UI (3s/5s/10s/30s)
-- [ ] Auto-pause threshold settings UI
-- [ ] Theme selection (Light/Dark/System)
-- [ ] Map type selection (Street/Satellite/Terrain)
-- [ ] Push notifications toggle
+- [x] GPS accuracy configuration UI (High/Balanced/Low)
+- [x] Reading interval UI (3s/5s/10s/30s)
+- [x] Auto-pause threshold settings UI
+- [x] Theme selection (Light/Dark/System)
+- [x] Map type selection (Street/Satellite/Terrain)
+- [x] Push notifications toggle
 - [ ] Google OAuth2 flow completion
 - [ ] Data synchronization implementation
 
