@@ -2,11 +2,15 @@ import { Component, OnInit } from '@angular/core';
 import { HistoryService } from '../services/history.service';
 import { Ride } from '../models/ride.model';
 import { Observable } from 'rxjs';
+import { IonicModule } from '@ionic/angular';
+import { CommonModule } from '@angular/common';
 
 @Component({
   selector: 'app-history',
   templateUrl: './history.page.html',
   styleUrls: ['./history.page.scss'],
+  standalone: true,
+  imports: [IonicModule, CommonModule]
 })
 export class HistoryPage implements OnInit {
   rides$: Observable<Ride[]>;

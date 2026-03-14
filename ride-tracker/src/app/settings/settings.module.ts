@@ -13,8 +13,9 @@ import { SettingsPageRoutingModule } from './settings-routing.module';
     CommonModule,
     FormsModule,
     ExploreContainerComponentModule,
-    SettingsPageRoutingModule
+    SettingsPageRoutingModule,
+    SettingsPage
   ],
-  declarations: [SettingsPage]
+  declarations: []
 })
 export class SettingsPageModule {}

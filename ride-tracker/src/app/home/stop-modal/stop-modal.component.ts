@@ -1,8 +1,10 @@
 import { Component } from '@angular/core';
-import { ModalController } from '@ionic/angular';
+import { ModalController, IonicModule } from '@ionic/angular';
 
 @Component({
   selector: 'app-stop-modal',
+  standalone: true,
+  imports: [IonicModule],
   template: `
     <ion-content class="ion-padding ion-text-center">
       <div class="modal-header">

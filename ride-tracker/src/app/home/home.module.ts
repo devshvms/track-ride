@@ -16,8 +16,12 @@ import { RideSummaryComponent } from './ride-summary/ride-summary.component';
     CommonModule,
     FormsModule,
     ExploreContainerComponentModule,
-    HomePageRoutingModule
+    HomePageRoutingModule,
+    HomePage,
+    PauseModalComponent,
+    StopModalComponent,
+    RideSummaryComponent
   ],
-  declarations: [HomePage, PauseModalComponent, StopModalComponent, RideSummaryComponent]
+  declarations: []
 })
 export class HomePageModule {}

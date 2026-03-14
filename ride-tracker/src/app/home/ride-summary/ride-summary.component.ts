@@ -3,11 +3,15 @@ import { RideService } from '../../services/ride.service';
 import { Ride } from '../../models/ride.model';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
+import { IonicModule } from '@ionic/angular';
+import { CommonModule } from '@angular/common';
 
 @Component({
   selector: 'app-ride-summary',
   templateUrl: './ride-summary.component.html',
-  styleUrls: ['./ride-summary.component.scss']
+  styleUrls: ['./ride-summary.component.scss'],
+  standalone: true,
+  imports: [IonicModule, CommonModule]
 })
 export class RideSummaryComponent implements OnInit {
   ride$: Observable<Ride | null>;

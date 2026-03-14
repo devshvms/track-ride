@@ -1,9 +1,13 @@
 import { Component } from '@angular/core';
-import { ModalController } from '@ionic/angular';
+import { ModalController, IonicModule } from '@ionic/angular';
 import { PauseReason } from '../../models/ride.model';
+import { FormsModule } from '@angular/forms';
+import { CommonModule } from '@angular/common';
 
 @Component({
   selector: 'app-pause-modal',
+  standalone: true,
+  imports: [IonicModule, FormsModule, CommonModule],
   template: `
     <ion-header>
       <ion-toolbar>

@@ -3,11 +3,15 @@ import { SettingsService } from '../services/settings.service';
 import { AuthService } from '../services/auth.service';
 import { AppSettings } from '../models/ride.model';
 import { Observable } from 'rxjs';
+import { IonicModule } from '@ionic/angular';
+import { CommonModule } from '@angular/common';
 
 @Component({
   selector: 'app-settings',
   templateUrl: './settings.page.html',
   styleUrls: ['./settings.page.scss'],
+  standalone: true,
+  imports: [IonicModule, CommonModule]
 })
 export class SettingsPage implements OnInit {
   settings$: Observable<AppSettings>;

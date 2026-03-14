@@ -13,8 +13,9 @@ import { HistoryPageRoutingModule } from './history-routing.module';
     CommonModule,
     FormsModule,
     ExploreContainerComponentModule,
-    HistoryPageRoutingModule
+    HistoryPageRoutingModule,
+    HistoryPage
   ],
-  declarations: [HistoryPage]
+  declarations: []
 })
 export class HistoryPageModule {}

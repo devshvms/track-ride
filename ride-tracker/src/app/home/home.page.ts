@@ -3,20 +3,23 @@ import { RideService } from '../services/ride.service';
 import { RideState } from '../models/ride-state.model';
 import { Observable } from 'rxjs';
 import { Ride } from '../models/ride.model';
-import { ModalController } from '@ionic/angular';
+import { ModalController, IonicModule } from '@ionic/angular';
 import { PauseModalComponent } from './pause-modal/pause-modal.component';
 import { StopModalComponent } from './stop-modal/stop-modal.component';
 import { RideSummaryComponent } from "./ride-summary/ride-summary.component";
+import { CommonModule } from '@angular/common';
 
 
 @Component({
   selector: 'app-home',
   templateUrl: 'home.page.html',
   styleUrls: ['home.page.scss'],
-  imports: [RideSummaryComponent],
+  standalone: true,
+  imports: [IonicModule, RideSummaryComponent, PauseModalComponent, StopModalComponent, CommonModule],
 })
 export class HomePage implements OnInit {
   currentState$: Observable<RideState> = this.rideService.currentState$;
+  currentRide$: Observable<Ride | null> = this.rideService.currentRide$;
 
   RideState = RideState; // Allow access to enum in template
 
