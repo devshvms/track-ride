@@ -29,4 +29,9 @@ export class HistoryService {
     this.ridesSubject.next(updated);
     localStorage.setItem(this.HISTORY_KEY, JSON.stringify(updated));
   }
+
+  replaceAllRides(rides: Ride[]): void {
+    this.ridesSubject.next(rides);
+    localStorage.setItem(this.HISTORY_KEY, JSON.stringify(rides));
+  }
 }

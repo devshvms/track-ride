@@ -113,7 +113,7 @@ ride-tracker/
 - [x] GPX export via `GpxExportService`
 - [x] Share as image via `MapImageExportService`
 
-### 🔄 Phase 5: Settings & Sync (In Progress)
+### ✅ Phase 5: Settings & Sync
 - [x] Settings UI structure
 - [x] Units toggle (km/miles)
 - [x] Auto-pause enable/disable toggle
@@ -125,8 +125,8 @@ ride-tracker/
 - [x] Theme selection (Light/Dark/System)
 - [x] Map type selection (Street/Satellite/Terrain)
 - [x] Push notifications toggle
-- [ ] Google OAuth2 flow completion
-- [ ] Data synchronization implementation
+- [x] Google OAuth2 flow completion
+- [x] Data synchronization implementation
 
 ### ⏳ Phase 6: Refinement
 - [x] Map integration (Leaflet route plotting in ride detail)
