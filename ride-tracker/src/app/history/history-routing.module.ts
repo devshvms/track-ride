@@ -6,6 +6,10 @@ const routes: Routes = [
   {
     path: '',
     component: HistoryPage,
+  },
+  {
+    path: ':id',
+    loadComponent: () => import('./ride-detail/ride-detail.page').then(m => m.RideDetailPage)
   }
 ];
 

@@ -1,5 +1,5 @@
 // src/app/home/ride-summary/ride-summary.component.ts
-import { Component, EventEmitter, Output } from '@angular/core';
+import { Component, EventEmitter, Output, AfterViewInit, OnDestroy } from '@angular/core';
 import { RideService } from '../../services/ride.service';
 import { Ride } from '../../models/ride.model';
 import { Observable } from 'rxjs';
@@ -7,6 +7,7 @@ import { IonicModule } from '@ionic/angular';
 import { CommonModule } from '@angular/common';
 import { RideUtils } from '../../utils/ride-calculations';
 import { SpeedPipe, DistancePipe, DurationPipe } from '../../pipes/duration.pipe';
+import * as L from 'leaflet';
 
 @Component({
   selector: 'app-ride-summary',
@@ -15,7 +16,8 @@ import { SpeedPipe, DistancePipe, DurationPipe } from '../../pipes/duration.pipe
   standalone: true,
   imports: [IonicModule, CommonModule, SpeedPipe, DistancePipe, DurationPipe]
 })
-export class RideSummaryComponent {
+export class RideSummaryComponent implements AfterViewInit, OnDestroy {
+  private map: L.Map | null = null;
   /** FIX: emit event so parent (HomePage) can navigate to history tab */
   @Output() viewHistory = new EventEmitter<void>();
 
@@ -23,6 +25,55 @@ export class RideSummaryComponent {
 
   constructor(private rideService: RideService) {
     this.ride$ = this.rideService.currentRide$;
+  }
+
+  ngAfterViewInit(): void {
+    setTimeout(() => this.initMap(), 100);
+  }
+
+  ngOnDestroy(): void {
+    if (this.map) {
+      this.map.remove();
+      this.map = null;
+    }
+  }
+
+  private initMap(): void {
+    this.ride$.subscribe(ride => {
+      if (!ride || ride.points.length === 0) return;
+      if (this.map) return; // Already initialized
+
+      const mapElement = document.getElementById('summary-map');
+      if (!mapElement) return;
+
+      const latlngs: L.LatLngExpression[] = ride.points.map(p => [p.latitude, p.longitude]);
+
+      this.map = L.map('summary-map', {
+        zoomControl: false,
+        attributionControl: false,
+        dragging: false,
+        scrollWheelZoom: false
+      });
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(this.map);
+
+      const routeLine = L.polyline(latlngs, {
+        color: '#2dd36f',
+        weight: 4,
+        opacity: 0.9
+      }).addTo(this.map);
+
+      // Add start/end markers
+      const points = ride.points;
+      L.circleMarker([points[0].latitude, points[0].longitude], {
+        radius: 8, color: '#2dd36f', fillColor: '#2dd36f', fillOpacity: 1
+      }).addTo(this.map);
+      L.circleMarker([points[points.length-1].latitude, points[points.length-1].longitude], {
+        radius: 8, color: '#eb445a', fillColor: '#eb445a', fillOpacity: 1
+      }).addTo(this.map);
+
+      this.map.fitBounds(routeLine.getBounds(), { padding: [20, 20] });
+    }).unsubscribe;
   }
 
   closeSummary(): void {
@@ -42,14 +93,7 @@ export class RideSummaryComponent {
     return ride.endTime ? ride.endTime - ride.startTime : 0;
   }
 
-  getStaticMapUrl(ride: Ride): string {
-    return RideUtils.getStaticMapUrl(ride.points, 'YOUR_GOOGLE_MAPS_API_KEY');
-  }
-
-  onMapError(event: Event): void {
-    (event.target as HTMLImageElement).src = 'assets/icon/favicon.png';
-  }
-
+  
   async shareRide(ride: Ride): Promise<void> {
     const distKm     = (ride.totalDistance / 1000).toFixed(2);
     const avgKph     = RideUtils.msToKph(ride.averageSpeed).toFixed(1);

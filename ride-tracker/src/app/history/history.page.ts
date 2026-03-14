@@ -8,7 +8,7 @@ import { map } from 'rxjs/operators';
 import { IonicModule, AlertController } from '@ionic/angular';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { SpeedPipe, DistancePipe, DurationPipe } from '../pipes/duration.pipe';
+import { DurationPipe } from '../pipes/duration.pipe';
 import { RideUtils } from '../utils/ride-calculations';
 
 @Component({
@@ -16,7 +16,7 @@ import { RideUtils } from '../utils/ride-calculations';
   templateUrl: './history.page.html',
   styleUrls: ['./history.page.scss'],
   standalone: true,
-  imports: [IonicModule, CommonModule, FormsModule, SpeedPipe, DistancePipe, DurationPipe]
+  imports: [IonicModule, CommonModule, FormsModule, DurationPipe]
 })
 export class HistoryPage implements OnInit {
 

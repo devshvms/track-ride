@@ -82,6 +82,14 @@ export class RideService {
         this.processNewPoint(point);
       }
     });
+    // Handle location errors gracefully
+    this.location.error$.subscribe(err => {
+      console.warn('GPS Error:', err.code, err.message || 'Location unavailable');
+      // Trigger GPS signal lost state for tracking
+      if (this.stateSubject.value === RideState.TRACKING) {
+        this.gpsMonitor.reportError();
+      }
+    });
   }
 
   private initTrackingSubscriptions(): void {

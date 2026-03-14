@@ -5,21 +5,25 @@
 </ion-header>
 
 <ion-content [fullscreen]="true">
-  <ion-list *ngIf="rides$ | async as rides; else loading">
+  <ion-list *ngIf="filteredRides$ | async as rides; else loading">
     
     <ion-item-sliding *ngFor="let ride of rides">
-      <ion-item>
+      <ion-item button (click)="openDetail(ride)">
         <ion-label>
           <h2>{{ ride.startTime | date:'mediumDate' }}</h2>
-          <p>{{ ride.totalDistance / 1000 | number:'1.2-2' }} km • {{ getTotalDuration(ride) }}</p>
+          <p>{{ ride.totalDistance / 1000 | number:'1.2-2' }} km • {{ getDuration(ride) | duration }}</p>
         </ion-label>
         <ion-note slot="end">
-          {{ ride.averageSpeed | number:'1.1-1' }} km/h
+          {{ ride.averageSpeed * 3.6 | number:'1.1-1' }} km/h
         </ion-note>
+        <ion-icon name="chevron-forward-outline" slot="end" color="medium"></ion-icon>
       </ion-item>
 
       <ion-item-options side="end">
-        <ion-item-option color="danger" (click)="deleteRide(ride.id)">
+        <ion-item-option color="primary" (click)="shareRide(ride, $event)">
+          <ion-icon slot="icon-only" name="share-outline"></ion-icon>
+        </ion-item-option>
+        <ion-item-option color="danger" (click)="deleteRide(ride, $event)">
           <ion-icon slot="icon-only" name="trash"></ion-icon>
         </ion-item-option>
       </ion-item-options>
