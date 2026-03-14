@@ -4,12 +4,12 @@ import { Ride } from '../models/ride.model';
 import { Share } from '@capacitor/share';
 
 @Component({
-  selector: 'app-tab2',
-  templateUrl: 'tab2.page.html',
-  styleUrls: ['tab2.page.scss'],
+  selector: 'app-history',
+  templateUrl: 'history.page.html',
+  styleUrls: ['history.page.scss'],
   standalone: false
 })
-export class Tab2Page implements OnInit {
+export class HistoryPage implements OnInit {
   rides: Ride[] = [];
   filteredRides: Ride[] = [];
   

@@ -4,12 +4,12 @@ import { Ride } from '../models/ride.model';
 import { AlertController } from '@ionic/angular';
 
 @Component({
-  selector: 'app-tab1',
-  templateUrl: 'tab1.page.html',
-  styleUrls: ['tab1.page.scss'],
+  selector: 'app-home',
+  templateUrl: 'home.page.html',
+  styleUrls: ['home.page.scss'],
   standalone: false
 })
-export class Tab1Page implements OnInit {
+export class HomePage implements OnInit {
   currentRide: Ride | null = null;
   isTracking = false;
   isPaused = false;
