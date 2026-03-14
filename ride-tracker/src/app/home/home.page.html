@@ -66,6 +66,12 @@
       ) {
         <ng-container *ngIf="currentRide$ | async as ride">
 
+          <!-- Mini Live Map -->
+          <app-live-map 
+            [points]="ride.points" 
+            [isTracking]="(currentState$ | async) === RideState.TRACKING">
+          </app-live-map>
+
           <!-- Timer prominent display -->
           <div class="elapsed-display">
             <span class="elapsed-time">{{ (elapsed$ | async) | apply:formatElapsed }}</span>

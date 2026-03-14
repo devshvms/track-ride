@@ -23,6 +23,13 @@
     <div id="ride-map" class="ride-map"></div>
   </div>
 
+  <!-- Speed Graph -->
+  <app-speed-graph 
+    *ngIf="ride.points.length >= 2" 
+    [points]="ride.points" 
+    [units]="units">
+  </app-speed-graph>
+
   <!-- Stats Summary -->
   <div class="stats-section">
     <div class="stat-row">

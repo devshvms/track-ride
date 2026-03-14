@@ -128,13 +128,13 @@ ride-tracker/
 - [x] Google OAuth2 flow completion
 - [x] Data synchronization implementation
 
-### ⏳ Phase 6: Refinement
+### ✅ Phase 6: Refinement
 - [x] Map integration (Leaflet route plotting in ride detail)
 - [x] Static map image generation for sharing
-- [ ] Mini live map during tracking
-- [ ] Speed graph in ride detail view
-- [ ] Battery usage optimization
-- [ ] UI/UX polishing for all screen sizes
+- [x] Mini live map during tracking
+- [x] Speed graph in ride detail view
+- [x] Battery usage optimization
+- [x] UI/UX polishing for all screen sizes
 - [ ] Comprehensive testing on Android, iOS, and Web
 
 ---

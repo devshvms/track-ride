@@ -36,3 +36,31 @@
  */
 
 @import "@ionic/angular/css/palettes/dark.system.css";
+
+/* Live map pulse marker */
+.current-position-marker {
+  background: transparent;
+  border: none;
+}
+
+.pulse-dot {
+  width: 16px;
+  height: 16px;
+  background: var(--ion-color-primary);
+  border-radius: 50%;
+  border: 3px solid white;
+  box-shadow: 0 0 0 0 rgba(var(--ion-color-primary-rgb), 0.7);
+  animation: pulse-ring 1.5s ease-out infinite;
+}
+
+@keyframes pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 rgba(var(--ion-color-primary-rgb), 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 12px rgba(var(--ion-color-primary-rgb), 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(var(--ion-color-primary-rgb), 0);
+  }
+}

@@ -92,3 +92,102 @@ ion-list-header {
   gap: 12px;
   margin-bottom: 24px;
 }
+
+// ── RESPONSIVE DESIGN ───────────────────────────────────────
+@media (min-width: 768px) {
+  .map-container {
+    height: 350px;
+  }
+
+  .stats-section {
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 24px;
+  }
+
+  .stat-value {
+    font-size: 2.2rem;
+  }
+
+  ion-list {
+    max-width: 600px;
+    margin: 0 auto;
+  }
+
+  .action-buttons {
+    max-width: 400px;
+    margin: 0 auto 24px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .map-container {
+    height: 400px;
+  }
+
+  .stats-section {
+    max-width: 700px;
+  }
+
+  ion-list {
+    max-width: 700px;
+  }
+}
+
+// ── SMALL SCREENS ───────────────────────────────────────────
+@media (max-width: 320px) {
+  .map-container {
+    height: 180px;
+  }
+
+  .stats-section {
+    padding: 12px;
+  }
+
+  .stat-value {
+    font-size: 1.4rem;
+  }
+
+  .stat-label {
+    font-size: 0.65rem;
+  }
+}
+
+// ── LANDSCAPE MODE ──────────────────────────────────────────
+@media (max-height: 500px) and (orientation: landscape) {
+  .map-container {
+    height: 150px;
+  }
+
+  .stats-section {
+    padding: 8px 16px;
+  }
+
+  .stat-row {
+    margin-bottom: 8px;
+  }
+
+  .stat-value {
+    font-size: 1.4rem;
+  }
+
+  ion-list {
+    ion-item {
+      --min-height: 44px;
+    }
+  }
+
+  .action-buttons {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+    padding: 8px 16px;
+    margin-bottom: 16px;
+
+    ion-button {
+      flex: 1;
+      min-width: 140px;
+      max-width: 200px;
+    }
+  }
+}

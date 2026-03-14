@@ -9,6 +9,7 @@ import { ModalController, IonicModule } from '@ionic/angular';
 import { PauseModalComponent } from './pause-modal/pause-modal.component';
 import { StopModalComponent } from './stop-modal/stop-modal.component';
 import { RideSummaryComponent } from './ride-summary/ride-summary.component';
+import { LiveMapComponent } from './live-map/live-map.component';
 import { CommonModule } from '@angular/common';
 import { SpeedPipe, DistancePipe } from '../pipes/duration.pipe';
 import { ApplyPipe } from '../pipes/apply.pipe';
@@ -19,7 +20,7 @@ import { RideUtils } from '../utils/ride-calculations';
   templateUrl: 'home.page.html',
   styleUrls: ['home.page.scss'],
   standalone: true,
-  imports: [IonicModule, RideSummaryComponent, CommonModule, SpeedPipe, DistancePipe, ApplyPipe]
+  imports: [IonicModule, RideSummaryComponent, LiveMapComponent, CommonModule, SpeedPipe, DistancePipe, ApplyPipe]
 })
 export class HomePage implements OnInit, OnDestroy {
   currentState$: Observable<RideState> = this.rideService.currentState$;

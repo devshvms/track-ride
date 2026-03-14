@@ -10,6 +10,7 @@ import { RideUtils } from '../../utils/ride-calculations';
 import { SpeedPipe, DistancePipe, DurationPipe } from '../../pipes/duration.pipe';
 import { GpxExportService } from '../../services/gpx-export.service';
 import { MapImageExportService } from '../../services/map-image-export.service';
+import { SpeedGraphComponent } from './speed-graph/speed-graph.component';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import * as L from 'leaflet';
@@ -19,7 +20,7 @@ import * as L from 'leaflet';
   templateUrl: './ride-detail.page.html',
   styleUrls: ['./ride-detail.page.scss'],
   standalone: true,
-  imports: [IonicModule, CommonModule, SpeedPipe, DistancePipe, DurationPipe]
+  imports: [IonicModule, CommonModule, SpeedPipe, DistancePipe, DurationPipe, SpeedGraphComponent]
 })
 export class RideDetailPage implements OnInit, AfterViewInit, OnDestroy {
   ride: Ride | null = null;

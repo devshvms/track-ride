@@ -200,3 +200,176 @@
   &.pause  { --background: var(--ion-color-warning); }
   &.stop   { --background: var(--ion-color-danger);  }
 }
+
+// ── RESPONSIVE DESIGN ───────────────────────────────────────
+@media (min-width: 768px) {
+  .dashboard-container {
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 24px;
+  }
+
+  .idle-center {
+    padding: 40px;
+  }
+
+  .gps-ring {
+    width: 150px;
+    height: 150px;
+  }
+
+  .bike-icon {
+    font-size: 72px;
+  }
+
+  .idle-title {
+    font-size: 2rem;
+  }
+
+  .start-btn {
+    min-width: 280px;
+    height: 64px;
+    font-size: 1.2rem;
+  }
+
+  .elapsed-time {
+    font-size: 4rem;
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+  }
+
+  .stat-card {
+    padding: 16px 12px;
+
+    .stat-value {
+      font-size: 1.6rem;
+    }
+
+    .stat-name {
+      font-size: 0.8rem;
+    }
+  }
+
+  .action-btn {
+    width: 88px;
+    height: 88px;
+    font-size: 2rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .dashboard-container {
+    max-width: 700px;
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(6, 1fr);
+  }
+}
+
+// ── SMALL SCREENS ───────────────────────────────────────────
+@media (max-width: 320px) {
+  .dashboard-container {
+    padding: 12px 8px;
+  }
+
+  .gps-ring {
+    width: 100px;
+    height: 100px;
+  }
+
+  .bike-icon {
+    font-size: 48px;
+  }
+
+  .idle-title {
+    font-size: 1.4rem;
+  }
+
+  .start-btn {
+    min-width: 160px;
+    height: 48px;
+    font-size: 0.95rem;
+  }
+
+  .elapsed-time {
+    font-size: 2.4rem;
+  }
+
+  .stat-card .stat-value {
+    font-size: 1.1rem;
+  }
+
+  .action-btn {
+    width: 60px;
+    height: 60px;
+    font-size: 1.4rem;
+  }
+}
+
+// ── LANDSCAPE MODE ──────────────────────────────────────────
+@media (max-height: 500px) and (orientation: landscape) {
+  .dashboard-container {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 8px 16px;
+    gap: 8px;
+  }
+
+  .idle-center {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 16px;
+    padding: 12px;
+  }
+
+  .gps-ring {
+    width: 80px;
+    height: 80px;
+  }
+
+  .bike-icon {
+    font-size: 40px;
+  }
+
+  .elapsed-display {
+    margin: 4px 0;
+  }
+
+  .elapsed-time {
+    font-size: 2rem;
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(6, 1fr);
+    gap: 6px;
+  }
+
+  .stat-card {
+    padding: 8px 4px;
+
+    .stat-value {
+      font-size: 1.1rem;
+    }
+
+    .stat-name {
+      font-size: 0.65rem;
+    }
+  }
+
+  .action-bar {
+    padding: 8px 0;
+  }
+
+  .action-btn {
+    width: 56px;
+    height: 56px;
+    font-size: 1.3rem;
+  }
+}
