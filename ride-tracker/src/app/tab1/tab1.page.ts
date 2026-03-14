@@ -60,7 +60,7 @@ export class Tab1Page implements OnInit {
   }
 
   async stopRide() {
-    const ride = await this.rideService.stopRide();
+    const ride = this.rideService.stopAndSaveRide();
     this.isTracking = false;
     this.isPaused = false;
     console.log('Ride saved:', ride);
