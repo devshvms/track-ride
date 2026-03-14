@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { BehaviorSubject, Subscription, timer } from 'rxjs';
 import { GpsStatus } from '../models/ride.model';
 import { LocationService } from './location.service';
+import { SettingsService } from './settings.service';
 
 @Injectable({ providedIn: 'root' })
 export class GpsMonitorService {
@@ -9,26 +10,40 @@ export class GpsMonitorService {
     public status$ = this.statusSubject.asObservable();
 
     private timeoutSubscription?: Subscription;
-    private readonly GPS_TIMEOUT_THRESHOLD = 60000; // 60 seconds (Workflow Line 301)
 
-    constructor(private locationService: LocationService) {
+    constructor(
+        private locationService: LocationService,
+        private settings: SettingsService
+    ) {
         this.locationService.location$.subscribe(() => this.resetTimeout());
         this.locationService.error$.subscribe(() => this.handleGpsError());
+    }
+
+    get currentStatus(): GpsStatus {
+        return this.statusSubject.value;
     }
 
     private resetTimeout() {
         this.timeoutSubscription?.unsubscribe();
         if (this.statusSubject.value.isLost) {
-            this.statusSubject.next({ isLost: false, retryCount: 0 });
+            this.statusSubject.next({ 
+                isLost: false, 
+                retryCount: 0,
+                lastFixTimestamp: Date.now()
+            });
         }
 
-        // If no signal for 60 seconds, trigger "Lost" state
-        this.timeoutSubscription = timer(this.GPS_TIMEOUT_THRESHOLD).subscribe(() => {
+        const timeout = this.settings.currentSettings.autoPause.gpsLostTimeout || 10000;
+
+        // If no signal for configured seconds, trigger "Lost" state
+        this.timeoutSubscription = timer(timeout).subscribe(() => {
             this.handleGpsError();
         });
     }
 
     private handleGpsError() {
+        if (this.statusSubject.value.isLost) return;
+        
         const current = this.statusSubject.value;
         const newStatus: GpsStatus = {
             isLost: true,
@@ -38,21 +53,8 @@ export class GpsMonitorService {
         this.statusSubject.next(newStatus);
     }
 
-    /**
-     * Logic to determine if the user is 'Stationary' based on speed threshold
-     * defined in AppSettings (Line 52 of ride.model.ts)
-     */
-    isStationary(speed: number | undefined, minSpeedThreshold: number): boolean {
-        if (speed === undefined || speed === null) return true;
-        return speed < minSpeedThreshold;
-    }
-
-    /**
-     * Manual reset if needed by the UI
-     */
     resetStatus() {
         this.statusSubject.next({ isLost: false, retryCount: 0 });
         this.resetTimeout();
     }
 }
-

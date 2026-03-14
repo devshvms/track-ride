@@ -42,6 +42,29 @@
           <p>{{ user.email }}</p>
         </ion-label>
         <ion-button fill="outline" color="danger" (click)="logout()">Logout</ion-button>
+        <ion-list inset="true">
+          <ion-item>
+            <ion-label>Auto-sync Rides</ion-label>
+            <ion-toggle [checked]="settings.syncWithGoogle" 
+                        (ionChange)="onToggleChange('syncWithGoogle', $event)">
+            </ion-toggle>
+          </ion-item>
+      
+          <ion-item lines="none">
+            <ion-label>
+              <h3>Sync Status</h3>
+              <p *ngIf="lastSynced$ | async as last">Last synced: {{ last | date:'short' }}</p>
+            </ion-label>
+            
+            <div slot="end">
+              <ion-spinner *ngIf="(syncStatus$ | async) === 'syncing'"></ion-spinner>
+              <ion-button *ngIf="(syncStatus$ | async) !== 'syncing'" 
+                          fill="clear" (click)="triggerSync()">
+                <ion-icon name="sync-outline" slot="icon-only"></ion-icon>
+              </ion-button>
+            </div>
+          </ion-item>
+        </ion-list>
       </ng-container>
 
       <ng-template #loginBtn>

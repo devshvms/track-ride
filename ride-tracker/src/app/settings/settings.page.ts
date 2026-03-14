@@ -5,6 +5,7 @@ import { AppSettings } from '../models/ride.model';
 import { Observable } from 'rxjs';
 import { IonicModule } from '@ionic/angular';
 import { CommonModule } from '@angular/common';
+import { GoogleDriveService } from '../services/google-drive.service';
 
 @Component({
   selector: 'app-settings',
@@ -17,18 +18,27 @@ export class SettingsPage implements OnInit {
   settings$: Observable<AppSettings>;
   user$ = this.authService.user$;
 
+  syncStatus$ = this.googleDriveService.syncStatus$;
+  lastSynced$ = this.googleDriveService.lastSynced$;
+
   constructor(
     private settingsService: SettingsService,
-    private authService: AuthService
+    private authService: AuthService,
+    private googleDriveService: GoogleDriveService
   ) {
     this.settings$ = this.settingsService.settings$;
   }
 
-  ngOnInit() {}
+  triggerSync() {
+    this.googleDriveService.syncNow();
+  }
+
+
+  ngOnInit() { }
 
   onToggleChange(key: keyof AppSettings | 'autoPauseEnabled', event: any) {
     const value = event.detail.checked;
-    
+
     if (key === 'autoPauseEnabled') {
       this.settingsService.updateSettings({ autoPause: { ...this.settingsService.currentSettings.autoPause, enabled: value } });
     } else {

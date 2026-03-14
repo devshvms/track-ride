@@ -33,9 +33,11 @@ export type PauseReason =
   | 'traffic' 
   | 'fuel'
   | 'photo'
+  | 'other'
   | 'auto:gps_lost' 
-  | 'auto:stationary' 
-  | 'other';
+  | 'auto:stationary'
+  | 'auto:backgrounded'
+  | 'auto:low_speed';
 
 export interface GpsStatus {
   isLost: boolean;
@@ -57,4 +59,3 @@ export interface AppSettings {
   units: 'km' | 'miles';
   syncWithGoogle: boolean;
 }
-

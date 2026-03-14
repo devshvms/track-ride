@@ -1,11 +1,12 @@
 import { Injectable } from '@angular/core';
-import { BehaviorSubject, combineLatest, Subscription } from 'rxjs';
+import { BehaviorSubject, Subscription } from 'rxjs';
 import { RideState } from '../models/ride-state.model';
 import { Ride, GpsPoint, RideBreak, PauseReason } from '../models/ride.model';
 import { SettingsService } from './settings.service';
 import { GpsMonitorService } from './gps-monitor.service';
 import { LocationService } from './location.service';
 import { HistoryService } from './history.service';
+import { AutoPauseService } from './auto-pause.service';
 import { RideUtils } from '../utils/ride-calculations';
 
 @Injectable({ providedIn: 'root' })
@@ -17,15 +18,16 @@ export class RideService {
   public currentRide$ = this.currentRideSubject.asObservable();
 
   private locationSubscription?: Subscription;
+  private autoPauseSubscription?: Subscription;
+  private gpsMonitorSubscription?: Subscription;
 
   constructor(
     private settings: SettingsService,
     private gpsMonitor: GpsMonitorService,
     private location: LocationService,
-    private history: HistoryService
-  ) {
-    this.initAutoPauseLogic();
-  }
+    private history: HistoryService,
+    private autoPause: AutoPauseService
+  ) {}
 
   startRide() {
     const newRide: Ride = {
@@ -40,15 +42,53 @@ export class RideService {
     this.currentRideSubject.next(newRide);
     this.stateSubject.next(RideState.TRACKING);
     this.startLocationProcessing();
+    this.initTrackingSubscriptions();
   }
 
   private startLocationProcessing() {
     this.location.startTracking();
     this.locationSubscription = this.location.location$.subscribe(point => {
+      this.autoPause.evaluateMovement(point.speed);
       if (this.stateSubject.value === RideState.TRACKING) {
         this.processNewPoint(point);
       }
     });
+  }
+
+  private initTrackingSubscriptions() {
+    // Listen to GPS lost/restored
+    this.gpsMonitorSubscription = this.gpsMonitor.status$.subscribe(status => {
+      this.handleGpsStatusChange(status.isLost);
+    });
+
+    // Listen to Auto-Pause events
+    this.autoPauseSubscription = this.autoPause.events$.subscribe(event => {
+      if (event.pause) {
+        if (this.stateSubject.value === RideState.TRACKING || this.stateSubject.value === RideState.GPS_SIGNAL_LOST) {
+          this.pauseRide(event.reason || 'auto:stationary');
+        }
+      } else {
+        if (this.stateSubject.value === RideState.AUTO_PAUSED) {
+          this.resumeRide(true);
+        }
+      }
+    });
+  }
+
+  private handleGpsStatusChange(isLost: boolean) {
+    const currentState = this.stateSubject.value;
+    
+    if (isLost) {
+      if (currentState === RideState.TRACKING) {
+        this.stateSubject.next(RideState.GPS_SIGNAL_LOST);
+      }
+      this.autoPause.handleGpsStatus(true);
+    } else {
+      if (currentState === RideState.GPS_SIGNAL_LOST) {
+        this.stateSubject.next(RideState.TRACKING);
+      }
+      this.autoPause.handleGpsStatus(false);
+    }
   }
 
   private processNewPoint(newPoint: GpsPoint) {
@@ -76,27 +116,23 @@ export class RideService {
     });
   }
 
-  /**
-   * Transitions to PAUSED state and records a break entry
-   */
   pauseRide(reason: PauseReason = 'break') {
     const ride = this.currentRideSubject.value;
     if (ride) {
       const newBreak: RideBreak = {
         startTime: Date.now(),
         reason,
-        location: ride.points[ride.points.length - 1] // Last known position
+        location: ride.points[ride.points.length - 1]
       };
       const updatedBreaks = [...ride.breaks, newBreak];
       this.currentRideSubject.next({ ...ride, breaks: updatedBreaks });
     }
 
-    // Determine if this was a manual pause or auto-pause
     const newState = reason.startsWith('auto:') ? RideState.AUTO_PAUSED : RideState.PAUSED;
     this.stateSubject.next(newState);
   }
 
-  resumeRide() {
+  resumeRide(isAuto: boolean = false) {
     const ride = this.currentRideSubject.value;
     if (ride && ride.breaks.length > 0) {
       const lastBreak = ride.breaks[ride.breaks.length - 1];
@@ -104,7 +140,20 @@ export class RideService {
         lastBreak.endTime = Date.now();
       }
     }
-    this.stateSubject.next(RideState.TRACKING);
+
+    if (isAuto) {
+      this.stateSubject.next(RideState.AUTO_RESUME);
+      // Transient state, move immediately to TRACKING or GPS_SIGNAL_LOST
+      setTimeout(() => {
+        if (this.gpsMonitor.currentStatus.isLost) { // Use currentStatus getter
+          this.stateSubject.next(RideState.GPS_SIGNAL_LOST);
+        } else {
+          this.stateSubject.next(RideState.TRACKING);
+        }
+      }, 500); // Small delay to simulate transient state
+    } else {
+      this.stateSubject.next(RideState.TRACKING);
+    }
   }
 
   stopAndSaveRide() {
@@ -115,41 +164,25 @@ export class RideService {
       this.currentRideSubject.next(finalRide);
     }
 
-    this.location.stopTracking();
-    this.locationSubscription?.unsubscribe();
+    this.cleanupTracking();
     this.stateSubject.next(RideState.RIDE_SUMMARY);
   }
 
-  resetToIdle() {
+  discardRide() {
+    this.cleanupTracking();
     this.currentRideSubject.next(null);
     this.stateSubject.next(RideState.IDLE);
   }
-  /**
- * Clears the current ride and returns to the home screen start state
- */
+
+  private cleanupTracking() {
+    this.location.stopTracking();
+    this.locationSubscription?.unsubscribe();
+    this.autoPauseSubscription?.unsubscribe();
+    this.gpsMonitorSubscription?.unsubscribe();
+  }
+
   finishSummary() {
     this.currentRideSubject.next(null);
     this.stateSubject.next(RideState.IDLE);
-  }
-
-  private initAutoPauseLogic() {
-    combineLatest([
-      this.gpsMonitor.status$,
-      this.currentState$
-    ]).subscribe(([gpsStatus, state]) => {
-      const s = this.settings.currentSettings;
-
-      // Workflow Logic: Pause if GPS is lost and setting is enabled
-      if (s.autoPause.enabled && state === RideState.TRACKING) {
-        if (gpsStatus.isLost && s.autoPause.pauseOnGpsLost) {
-          this.pauseRide('auto:gps_lost');
-        }
-      }
-
-      // Workflow Logic: Resume if GPS is restored while in AUTO_PAUSED
-      if (state === RideState.AUTO_PAUSED && !gpsStatus.isLost) {
-        this.resumeRide();
-      }
-    });
   }
 }
