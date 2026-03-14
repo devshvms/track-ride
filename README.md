@@ -69,3 +69,6 @@ Ride Tracker is designed to help users monitor their journeys, providing real-ti
 *   [ ] Battery usage optimization.
 *   [ ] UI/UX polishing for all screen sizes.
 *   [ ] Comprehensive testing on Android, iOS, and Web.
+
+
+Ref: https://www.figma.com/board/rVeytjV3OgTR21XwumnnY7/Ride-Tracker-%E2%80%94-Full-Screen-Flow?node-id=0-1&t=5vblPkksFFwIHH7k-0
