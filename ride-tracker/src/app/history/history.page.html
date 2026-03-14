@@ -1,17 +1,40 @@
 <ion-header [translucent]="true">
   <ion-toolbar>
-    <ion-title>
-      Tab 2
-    </ion-title>
+    <ion-title>Ride History</ion-title>
   </ion-toolbar>
 </ion-header>
 
 <ion-content [fullscreen]="true">
-  <ion-header collapse="condense">
-    <ion-toolbar>
-      <ion-title size="large">Tab 2</ion-title>
-    </ion-toolbar>
-  </ion-header>
+  <ion-list *ngIf="rides$ | async as rides; else loading">
+    
+    <ion-item-sliding *ngFor="let ride of rides">
+      <ion-item>
+        <ion-label>
+          <h2>{{ ride.startTime | date:'mediumDate' }}</h2>
+          <p>{{ ride.totalDistance / 1000 | number:'1.2-2' }} km • {{ getTotalDuration(ride) }}</p>
+        </ion-label>
+        <ion-note slot="end">
+          {{ ride.averageSpeed | number:'1.1-1' }} km/h
+        </ion-note>
+      </ion-item>
 
-  <app-explore-container name="Tab 2 page"></app-explore-container>
+      <ion-item-options side="end">
+        <ion-item-option color="danger" (click)="deleteRide(ride.id)">
+          <ion-icon slot="icon-only" name="trash"></ion-icon>
+        </ion-item-option>
+      </ion-item-options>
+    </ion-item-sliding>
+
+    <div *ngIf="rides.length === 0" class="ion-padding ion-text-center">
+      <ion-icon name="bicycle-outline" style="font-size: 64px; color: var(--ion-color-medium);"></ion-icon>
+      <p>No rides recorded yet. Start your first journey!</p>
+    </div>
+
+  </ion-list>
+
+  <ng-template #loading>
+    <div class="ion-padding ion-text-center">
+      <ion-spinner></ion-spinner>
+    </div>
+  </ng-template>
 </ion-content>

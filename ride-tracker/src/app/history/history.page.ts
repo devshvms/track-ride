@@ -1,53 +1,30 @@
 import { Component, OnInit } from '@angular/core';
 import { HistoryService } from '../services/history.service';
 import { Ride } from '../models/ride.model';
-import { Share } from '@capacitor/share';
+import { Observable } from 'rxjs';
 
 @Component({
   selector: 'app-history',
-  templateUrl: 'history.page.html',
-  styleUrls: ['history.page.scss'],
-  standalone: false
+  templateUrl: './history.page.html',
+  styleUrls: ['./history.page.scss'],
 })
 export class HistoryPage implements OnInit {
-  rides: Ride[] = [];
-  filteredRides: Ride[] = [];
-  
-  startDate: string | null = null;
-  endDate: string | null = null;
+  rides$: Observable<Ride[]>;
 
-  constructor(private historyService: HistoryService) {}
-
-  ngOnInit() {
-    this.historyService.rides$.subscribe(rides => {
-      this.rides = rides;
-      this.applyFilters();
-    });
+  constructor(private historyService: HistoryService) {
+    this.rides$ = this.historyService.rides$;
   }
 
-  applyFilters() {
-    this.filteredRides = this.rides.filter(ride => {
-      let matches = true;
-      if (this.startDate) {
-        matches = matches && ride.startTime >= new Date(this.startDate).getTime();
-      }
-      if (this.endDate) {
-        matches = matches && ride.startTime <= new Date(this.endDate).getTime();
-      }
-      return matches;
-    });
+  ngOnInit() {}
+
+  deleteRide(id: string) {
+    this.historyService.deleteRide(id);
   }
 
-  async shareRide(ride: Ride) {
-    await Share.share({
-      title: 'My Ride Summary',
-      text: `I completed a ride of ${(ride.totalDistance / 1000).toFixed(2)}km with an average speed of ${(ride.averageSpeed * 3.6).toFixed(1)}km/h!`,
-      url: 'https://ride-tracker-app.example.com',
-      dialogTitle: 'Share Ride'
-    });
-  }
-
-  formatDate(timestamp: number): string {
-    return new Date(timestamp).toLocaleDateString();
+  getTotalDuration(ride: Ride): string {
+    if (!ride.endTime) return 'Incomplete';
+    const diff = Math.floor((ride.endTime - ride.startTime) / 1000);
+    const mins = Math.floor(diff / 60);
+    return `${mins} min`;
   }
 }

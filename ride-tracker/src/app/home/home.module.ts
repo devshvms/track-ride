@@ -6,6 +6,9 @@ import { HomePage } from './home.page';
 import { ExploreContainerComponentModule } from '../explore-container/explore-container.module';
 
 import { HomePageRoutingModule } from './home-routing.module';
+import { PauseModalComponent } from './pause-modal/pause-modal.component';
+import { StopModalComponent } from './stop-modal/stop-modal.component';
+import { RideSummaryComponent } from './ride-summary/ride-summary.component';
 
 @NgModule({
   imports: [
@@ -15,6 +18,6 @@ import { HomePageRoutingModule } from './home-routing.module';
     ExploreContainerComponentModule,
     HomePageRoutingModule
   ],
-  declarations: [HomePage]
+  declarations: [HomePage, PauseModalComponent, StopModalComponent, RideSummaryComponent]
 })
 export class HomePageModule {}

@@ -1,17 +1,63 @@
 <ion-header [translucent]="true">
   <ion-toolbar>
-    <ion-title>
-      Tab 3
-    </ion-title>
+    <ion-title>Settings</ion-title>
   </ion-toolbar>
 </ion-header>
 
-<ion-content [fullscreen]="true">
-  <ion-header collapse="condense">
-    <ion-toolbar>
-      <ion-title size="large">Tab 3</ion-title>
-    </ion-toolbar>
-  </ion-header>
+<ion-content [fullscreen]="true" class="settings-container">
+  <ng-container *ngIf="settings$ | async as settings">
+    
+    <ion-list-header>
+      <ion-label>General</ion-label>
+    </ion-list-header>
 
-  <app-explore-container name="Tab 3 page"></app-explore-container>
+    <ion-list inset="true">
+      <ion-item>
+        <ion-label>Units</ion-label>
+        <ion-select [value]="settings.units" (ionChange)="onSelectChange('units', $event)">
+          <ion-select-option value="km">Kilometers</ion-select-option>
+          <ion-select-option value="miles">Miles</ion-select-option>
+        </ion-select>
+      </ion-item>
+
+      <ion-item>
+        <ion-label>Auto-Pause</ion-label>
+        <ion-toggle [checked]="settings.autoPause.enabled" 
+                    (ionChange)="onToggleChange('autoPauseEnabled', $event)">
+        </ion-toggle>
+      </ion-item>
+    </ion-list>
+
+    <ion-list-header>
+      <ion-label>Account & Sync</ion-label>
+    </ion-list-header>
+
+    <div class="auth-section">
+      <ng-container *ngIf="user$ | async as user; else loginBtn">
+        <ion-avatar>
+          <img [src]="user.photoUrl || 'assets/default-avatar.png'" alt="avatar" />
+        </ion-avatar>
+        <ion-label>
+          <h2>{{ user.name }}</h2>
+          <p>{{ user.email }}</p>
+        </ion-label>
+        <ion-button fill="outline" color="danger" (click)="logout()">Logout</ion-button>
+      </ng-container>
+
+      <ng-template #loginBtn>
+        <ion-button class="google-btn" (click)="login()">
+          <ion-icon slot="start" name="logo-google"></ion-icon>
+          Sign in with Google
+        </ion-button>
+        <p class="ion-text-center ion-padding-horizontal">
+          Sign in to sync your rides with Google Drive.
+        </p>
+      </ng-template>
+    </div>
+
+    <div class="version-info">
+      <p>Ride Tracker v1.0.0</p>
+    </div>
+
+  </ng-container>
 </ion-content>

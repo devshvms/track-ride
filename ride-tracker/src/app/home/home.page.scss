@@ -1,27 +1,40 @@
-.stats-container {
-  margin-bottom: 20px;
+scss
+.dashboard-container {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
 }
 
-.stat-label {
-  font-size: 0.8rem;
-  color: var(--ion-color-medium);
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  width: 100%;
+  gap: 10px;
+  margin-bottom: 50px;
 }
 
-.stat-value {
-  font-size: 1.2rem;
-  font-weight: bold;
+.stat-card {
+  text-align: center;
+  margin: 0;
+  padding: 10px;
 }
 
-.main-btn {
-  margin-top: 15px;
-  height: 60px;
-  font-size: 1.1rem;
+.action-center {
+  width: 100%;
+  display: flex;
+  justify-content: center;
 }
 
-.controls {
-  margin-top: 30px;
-}
-
-.timeline {
-  margin-top: 20px;
+.tracking-actions {
+  display: flex;
+  gap: 30px;
+  
+  ion-button {
+    --border-radius: 50%;
+    width: 80px;
+    height: 80px;
+  }
 }

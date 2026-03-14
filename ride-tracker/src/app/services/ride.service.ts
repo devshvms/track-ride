@@ -82,15 +82,15 @@ export class RideService {
   pauseRide(reason: PauseReason = 'break') {
     const ride = this.currentRideSubject.value;
     if (ride) {
-      const newBreak: RideBreak = { 
-        startTime: Date.now(), 
+      const newBreak: RideBreak = {
+        startTime: Date.now(),
         reason,
         location: ride.points[ride.points.length - 1] // Last known position
       };
       const updatedBreaks = [...ride.breaks, newBreak];
       this.currentRideSubject.next({ ...ride, breaks: updatedBreaks });
     }
-    
+
     // Determine if this was a manual pause or auto-pause
     const newState = reason.startsWith('auto:') ? RideState.AUTO_PAUSED : RideState.PAUSED;
     this.stateSubject.next(newState);
@@ -114,10 +114,22 @@ export class RideService {
       this.history.saveRide(finalRide);
       this.currentRideSubject.next(finalRide);
     }
-    
+
     this.location.stopTracking();
     this.locationSubscription?.unsubscribe();
     this.stateSubject.next(RideState.RIDE_SUMMARY);
+  }
+
+  resetToIdle() {
+    this.currentRideSubject.next(null);
+    this.stateSubject.next(RideState.IDLE);
+  }
+  /**
+ * Clears the current ride and returns to the home screen start state
+ */
+  finishSummary() {
+    this.currentRideSubject.next(null);
+    this.stateSubject.next(RideState.IDLE);
   }
 
   private initAutoPauseLogic() {
@@ -126,14 +138,14 @@ export class RideService {
       this.currentState$
     ]).subscribe(([gpsStatus, state]) => {
       const s = this.settings.currentSettings;
-      
+
       // Workflow Logic: Pause if GPS is lost and setting is enabled
       if (s.autoPause.enabled && state === RideState.TRACKING) {
         if (gpsStatus.isLost && s.autoPause.pauseOnGpsLost) {
           this.pauseRide('auto:gps_lost');
         }
       }
-      
+
       // Workflow Logic: Resume if GPS is restored while in AUTO_PAUSED
       if (state === RideState.AUTO_PAUSED && !gpsStatus.isLost) {
         this.resumeRide();

@@ -1,0 +1,37 @@
+scss
+.settings-container {
+  padding: 16px;
+}
+
+ion-list {
+  margin-bottom: 20px;
+  background: transparent;
+}
+
+ion-item {
+  --padding-start: 0;
+  margin-bottom: 8px;
+  border-radius: 8px;
+}
+
+.auth-section {
+  margin-top: 30px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 15px;
+
+  .google-btn {
+    --background: #ffffff;
+    --color: #757575;
+    --box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    font-weight: 500;
+  }
+}
+
+.version-info {
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--ion-color-medium);
+  margin-top: 40px;
+}

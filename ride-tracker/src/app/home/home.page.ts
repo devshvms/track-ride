@@ -1,77 +1,68 @@
 import { Component, OnInit } from '@angular/core';
 import { RideService } from '../services/ride.service';
+import { RideState } from '../models/ride-state.model';
+import { Observable } from 'rxjs';
 import { Ride } from '../models/ride.model';
-import { AlertController } from '@ionic/angular';
+import { ModalController } from '@ionic/angular';
+import { PauseModalComponent } from './pause-modal/pause-modal.component';
+import { StopModalComponent } from './stop-modal/stop-modal.component';
+import { RideSummaryComponent } from "./ride-summary/ride-summary.component";
+
 
 @Component({
   selector: 'app-home',
   templateUrl: 'home.page.html',
   styleUrls: ['home.page.scss'],
-  standalone: false
+  imports: [RideSummaryComponent],
 })
 export class HomePage implements OnInit {
-  currentRide: Ride | null = null;
-  isTracking = false;
-  isPaused = false;
+  currentState$: Observable<RideState> = this.rideService.currentState$;
+
+  RideState = RideState; // Allow access to enum in template
 
   constructor(
     private rideService: RideService,
-    private alertController: AlertController
+    private modalCtrl: ModalController // Inject ModalController
   ) {}
-
-  ngOnInit() {
-    this.rideService.currentRide$.subscribe(ride => {
-      this.currentRide = ride;
-    });
-  }
-
-  async startRide() {
-    await this.rideService.startRide();
-    this.isTracking = true;
-    this.isPaused = false;
-  }
-
+  
   async pauseRide() {
-    const alert = await this.alertController.create({
-      header: 'Pause Reason',
-      inputs: [
-        { name: 'reason', type: 'radio', label: 'Break', value: 'break', checked: true },
-        { name: 'reason', type: 'radio', label: 'Refreshment', value: 'refreshment' },
-        { name: 'reason', type: 'radio', label: 'Traffic', value: 'traffic' },
-        { name: 'reason', type: 'radio', label: 'Other', value: 'other' }
-      ],
-      buttons: [
-        { text: 'Cancel', role: 'cancel' },
-        {
-          text: 'Pause',
-          handler: (data) => {
-            this.rideService.pauseRide(data);
-            this.isPaused = true;
-          }
-        }
-      ]
+    const modal = await this.modalCtrl.create({
+      component: PauseModalComponent,
+      breakpoints: [0, 0.5], // Half-sheet behavior
+      initialBreakpoint: 0.5
     });
-    await alert.present();
+    
+    await modal.present();
+    const { data, role } = await modal.onWillDismiss();
+    
+    if (role === 'confirm' && data) {
+      this.rideService.pauseRide(data); // Pass the specific reason
+    }
+  }
+
+  ngOnInit() {}
+
+  startRide() {
+    this.rideService.startRide();
   }
 
   resumeRide() {
     this.rideService.resumeRide();
-    this.isPaused = false;
   }
 
   async stopRide() {
-    const ride = this.rideService.stopAndSaveRide();
-    this.isTracking = false;
-    this.isPaused = false;
-    console.log('Ride saved:', ride);
-    // TODO: Navigate to history or show summary
-  }
+    const modal = await this.modalCtrl.create({
+      component: StopModalComponent,
+      cssClass: 'auto-height-modal', // Optional: define this in global.scss for small modals
+      breakpoints: [0, 0.4],
+      initialBreakpoint: 0.4
+    });
 
-  formatDistance(meters: number): string {
-    return (meters / 1000).toFixed(2) + ' km';
-  }
+    await modal.present();
+    const { role } = await modal.onWillDismiss();
 
-  formatSpeed(mps: number): string {
-    return (mps * 3.6).toFixed(1) + ' km/h';
+    if (role === 'confirm') {
+      this.rideService.stopAndSaveRide();
+    }
   }
 }

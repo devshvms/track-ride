@@ -1,80 +1,71 @@
 <ion-header [translucent]="true">
   <ion-toolbar>
-    <ion-title>
-      Ride Tracker
-    </ion-title>
+    <ion-title>Ride Tracker</ion-title>
   </ion-toolbar>
 </ion-header>
 
-<ion-content [fullscreen]="true" class="ion-padding">
-  <div class="stats-container" *ngIf="currentRide">
-    <ion-card>
-      <ion-card-header>
-        <ion-card-title>Current Ride</ion-card-title>
-      </ion-card-header>
-      <ion-card-content>
-        <ion-grid>
-          <ion-row>
-            <ion-col>
-              <div class="stat-label">Distance</div>
-              <div class="stat-value">{{ formatDistance(currentRide.totalDistance) }}</div>
-            </ion-col>
-            <ion-col>
-              <div class="stat-label">Avg Speed</div>
-              <div class="stat-value">{{ formatSpeed(currentRide.averageSpeed) }}</div>
-            </ion-col>
-          </ion-row>
-          <ion-row>
-            <ion-col>
-              <div class="stat-label">Breaks</div>
-              <div class="stat-value">{{ currentRide.breaks.length }}</div>
-            </ion-col>
-            <ion-col>
-              <div class="stat-label">Points</div>
-              <div class="stat-value">{{ currentRide.points.length }}</div>
-            </ion-col>
-          </ion-row>
-        </ion-grid>
-      </ion-card-content>
-    </ion-card>
-  </div>
+<ion-content [fullscreen]="true">
 
-  <div class="controls ion-text-center">
-    <ion-button *ngIf="!isTracking" expand="block" (click)="startRide()" color="success" class="main-btn">
-      <ion-icon name="play-outline" slot="start"></ion-icon>
-      Start Ride
-    </ion-button>
+  <!-- Show Summary ONLY when in RIDE_SUMMARY state -->
+  @if ((currentState$ | async) === RideState.RIDE_SUMMARY) {
+  <app-ride-summary></app-ride-summary>
+  }
 
-    <div *ngIf="isTracking">
-      <ion-button *ngIf="!isPaused" expand="block" (click)="pauseRide()" color="warning" class="main-btn">
-        <ion-icon name="pause-outline" slot="start"></ion-icon>
-        Pause
-      </ion-button>
-      
-      <ion-button *ngIf="isPaused" expand="block" (click)="resumeRide()" color="success" class="main-btn">
-        <ion-icon name="play-outline" slot="start"></ion-icon>
-        Resume
+  @else {
+
+  <div class="dashboard-container" *ngIf="currentState$ | async as state">
+
+    <!-- Stats Display (Visible during tracking or pause) -->
+    <ng-container *ngIf="state !== RideState.IDLE">
+      <div class="stats-grid" *ngIf="currentRide$ | async as ride">
+        <ion-card class="stat-card">
+          <ion-card-subtitle>Speed</ion-card-subtitle>
+          <ion-card-title>{{ (ride.points[ride.points.length-1]?.speed || 0) * 3.6 | number:'1.1-1' }}
+            km/h</ion-card-title>
+        </ion-card>
+
+        <ion-card class="stat-card">
+          <ion-card-subtitle>Distance</ion-card-subtitle>
+          <ion-card-title>{{ ride.totalDistance / 1000 | number:'1.2-2' }} km</ion-card-title>
+        </ion-card>
+      </div>
+    </ng-container>
+
+    <!-- Main Action Buttons -->
+    <div class="action-center">
+      <!-- IDLE State: Big Start Button -->
+      <ion-button *ngIf="state === RideState.IDLE" size="large" expand="block" shape="round" (click)="startRide()">
+        <ion-icon slot="start" name="play"></ion-icon>
+        START RIDE
       </ion-button>
 
-      <ion-button expand="block" (click)="stopRide()" color="danger" class="main-btn">
-        <ion-icon name="stop-outline" slot="start"></ion-icon>
-        Stop & Save
-      </ion-button>
+      <!-- TRACKING State: Pause/Stop -->
+      <div class="tracking-actions" *ngIf="state === RideState.TRACKING">
+        <ion-button color="warning" (click)="pauseRide()">
+          <ion-icon name="pause"></ion-icon>
+        </ion-button>
+        <ion-button color="danger" (click)="stopRide()">
+          <ion-icon name="stop"></ion-icon>
+        </ion-button>
+      </div>
+
+      <!-- PAUSED State: Resume/Stop -->
+      <div class="tracking-actions" *ngIf="state === RideState.PAUSED || state === RideState.AUTO_PAUSED">
+        <ion-button color="success" (click)="resumeRide()">
+          <ion-icon name="play"></ion-icon>
+        </ion-button>
+        <ion-button color="danger" (click)="stopRide()">
+          <ion-icon name="stop"></ion-icon>
+        </ion-button>
+      </div>
     </div>
-  </div>
 
-  <div class="timeline" *ngIf="currentRide && currentRide.points.length > 0">
-    <ion-list>
-      <ion-list-header>
-        <ion-label>Timeline</ion-label>
-      </ion-list-header>
-      <ion-item *ngFor="let point of currentRide.points.slice(-5).reverse()">
-        <ion-label>
-          <h3>Location Point</h3>
-          <p>{{ point.latitude.toFixed(4) }}, {{ point.longitude.toFixed(4) }}</p>
-        </ion-label>
-        <ion-note slot="end">{{ point.timestamp | date:'shortTime' }}</ion-note>
-      </ion-item>
-    </ion-list>
+
+    <!-- State Indicator for Auto-Pause -->
+    <ion-chip *ngIf="state === RideState.AUTO_PAUSED" color="warning">
+      <ion-label>Auto-Paused (Waiting for GPS/Movement)</ion-label>
+    </ion-chip>
+
   </div>
+  }
 </ion-content>
