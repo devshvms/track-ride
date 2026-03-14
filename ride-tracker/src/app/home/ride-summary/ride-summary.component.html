@@ -93,13 +93,17 @@
 
     <!-- Action buttons -->
     <div class="summary-actions">
-      <ion-button expand="block" color="primary" (click)="shareRide(ride)">
-        <ion-icon slot="start" name="share-social-outline"></ion-icon>
-        Share Ride
+      <ion-button expand="block" color="success" (click)="shareAsImage(ride)">
+        <ion-icon slot="start" name="image-outline"></ion-icon>
+        Share as Image
       </ion-button>
 
-      <!-- FIX: "View in History" button was missing from workflow RIDE_SUMMARY state -->
-      <ion-button expand="block" fill="outline" color="primary" (click)="onViewInHistory()">
+      <ion-button expand="block" color="primary" fill="outline" (click)="shareRide(ride)">
+        <ion-icon slot="start" name="share-social-outline"></ion-icon>
+        Share Text
+      </ion-button>
+
+      <ion-button expand="block" fill="outline" color="medium" (click)="onViewInHistory()">
         <ion-icon slot="start" name="time-outline"></ion-icon>
         View in History
       </ion-button>

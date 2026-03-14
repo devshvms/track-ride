@@ -8,6 +8,7 @@ import { CommonModule } from '@angular/common';
 import { RideUtils } from '../../utils/ride-calculations';
 import { SpeedPipe, DistancePipe, DurationPipe } from '../../pipes/duration.pipe';
 import * as L from 'leaflet';
+import { MapImageExportService } from '../../services/map-image-export.service';
 
 @Component({
   selector: 'app-ride-summary',
@@ -23,7 +24,10 @@ export class RideSummaryComponent implements AfterViewInit, OnDestroy {
 
   ride$: Observable<Ride | null>;
 
-  constructor(private rideService: RideService) {
+  constructor(
+    private rideService: RideService,
+    private mapImageExport: MapImageExportService
+  ) {
     this.ride$ = this.rideService.currentRide$;
   }
 
@@ -116,6 +120,14 @@ export class RideSummaryComponent implements AfterViewInit, OnDestroy {
       // Fallback
       await navigator.clipboard.writeText(text).catch(() => {});
       alert('Summary copied to clipboard!');
+    }
+  }
+
+  async shareAsImage(ride: Ride): Promise<void> {
+    try {
+      await this.mapImageExport.exportRideAsImage(ride);
+    } catch {
+      alert('Could not create map image.');
     }
   }
 }

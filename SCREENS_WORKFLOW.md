@@ -1,8 +1,8 @@
 # 📱 Ride Tracker — Screen Workflow Documentation
 
-> **Version:** v2.0 (Enhanced with Auto-Pause/Resume)
+> **Version:** v2.1 (Implementation Progress Update)
 > **Framework:** Ionic + Capacitor (Angular)
-> **Last Updated:** March 2026
+> **Last Updated:** March 14, 2026
 
 ---
 
@@ -453,4 +453,87 @@ Settings: SIGNED IN
 
 ---
 
-> 📌 **Implementation Note:** The auto-pause state machine should be implemented as a dedicated `AutoPauseService` (Single Responsibility Principle) that emits events consumed by `RideService`. This keeps tracking logic decoupled from pause/resume detection logic, following SOLID principles already established in the codebase.
+## 8. Implementation Status
+
+### ✅ Completed
+
+| Component | Status | Notes |
+|-----------|--------|-------|
+| **Core Services** | ✅ Done | All 10 services implemented |
+| `RideService` | ✅ Done | GPS tracking orchestrator with state machine |
+| `LocationService` | ✅ Done | Capacitor Geolocation wrapper |
+| `HistoryService` | ✅ Done | Local storage persistence |
+| `SettingsService` | ✅ Done | User preferences management |
+| `AutoPauseService` | ✅ Done | Stationary/background detection |
+| `GpsMonitorService` | ✅ Done | Signal loss handling |
+| `AuthService` | ✅ Done | Google Sign-in (scaffold) |
+| `GoogleDriveService` | ✅ Done | Cloud sync (scaffold) |
+| `GpxExportService` | ✅ Done | GPX file export |
+| `MapImageExportService` | ✅ Done | Static map image generation |
+| **Home Screen** | ✅ Done | Full state machine implemented |
+| Pause Modal | ✅ Done | Manual pause reason selection |
+| Stop Modal | ✅ Done | Stop confirmation dialog |
+| Ride Summary | ✅ Done | Post-ride summary component |
+| **History Screen** | ✅ Done | List with reactive filtering |
+| Ride Detail View | ✅ Done | Interactive Leaflet map with route |
+| GPX Export | ✅ Done | Export ride as `.gpx` file |
+| Share as Image | ✅ Done | Map image export for sharing |
+| Delete Confirmation | ✅ Done | With swipe-to-delete |
+| **Settings Screen** | 🔄 Partial | Basic UI structure |
+| Units Toggle | ✅ Done | km/miles selection |
+| Auto-Pause Toggle | ✅ Done | Enable/disable auto-pause |
+| Google Sign-in UI | ✅ Done | Login/logout buttons |
+| Sync Status Display | ✅ Done | Last synced timestamp + sync button |
+
+### 🔄 In Progress / Pending
+
+| Component | Status | Notes |
+|-----------|--------|-------|
+| GPS Accuracy Settings UI | ⏳ Pending | High/Balanced/Low selector not in UI |
+| Reading Interval Settings UI | ⏳ Pending | 3s/5s/10s/30s slider not in UI |
+| Auto-Pause Threshold Settings | ⏳ Pending | Stationary threshold, min speed sliders |
+| Theme Selection | ⏳ Pending | Light/Dark/System toggle |
+| Map Type Selection | ⏳ Pending | Street/Satellite/Terrain |
+| Push Notifications Toggle | ⏳ Pending | ON/OFF toggle |
+| Google OAuth2 Flow | ⏳ Pending | Actual OAuth implementation |
+| Data Sync Implementation | ⏳ Pending | Real Google Drive sync |
+| Speed Graph in Ride Detail | ⏳ Pending | Speed over time chart |
+| Mini Live Map in Tracking | ⏳ Pending | Real-time route drawing |
+
+### 📁 Current File Structure
+
+```
+ride-tracker/src/app/
+├── home/
+│   ├── home.page.ts/html/scss      # Main tracking screen
+│   ├── pause-modal/                 # Manual pause reason selection
+│   ├── stop-modal/                  # Stop confirmation dialog
+│   └── ride-summary/                # Post-ride summary component
+├── history/
+│   ├── history.page.ts/html/scss   # Rides list with filtering
+│   └── ride-detail/                 # Full ride detail with Leaflet map
+├── settings/
+│   └── settings.page.ts/html/scss  # Settings configuration
+├── services/
+│   ├── ride.service.ts             # Main ride tracking orchestrator
+│   ├── location.service.ts         # GPS coordinate acquisition
+│   ├── history.service.ts          # Local persistence
+│   ├── auto-pause.service.ts       # Auto-pause/resume detection
+│   ├── gps-monitor.service.ts      # GPS signal monitoring
+│   ├── settings.service.ts         # User preferences
+│   ├── auth.service.ts             # Google OAuth (scaffold)
+│   ├── google-drive.service.ts     # Cloud sync (scaffold)
+│   ├── gpx-export.service.ts       # GPX file export
+│   └── map-image-export.service.ts # Static map image generation
+├── models/
+│   └── ride.model.ts               # TypeScript interfaces
+├── pipes/
+│   ├── duration.pipe.ts            # Duration/Speed/Distance pipes
+│   └── apply.pipe.ts               # Generic apply pipe
+└── utils/
+    └── ride-calculations.ts        # Calculation utilities
+```
+
+---
+
+> 📌 **Implementation Note:** The auto-pause state machine is implemented as a dedicated `AutoPauseService` (Single Responsibility Principle) that emits events consumed by `RideService`. This keeps tracking logic decoupled from pause/resume detection logic, following SOLID principles.

@@ -2,73 +2,176 @@
 
 A clean, multi-OS mobile and web application optimized for battery efficiency, built using Ionic and the Capacitor framework.
 
+> 📐 **Design Reference:** [Figma — Full Screen Flow](https://www.figma.com/board/rVeytjV3OgTR21XwumnnY7/Ride-Tracker-%E2%80%94-Full-Screen-Flow?node-id=0-1&t=5vblPkksFFwIHH7k-0)
+>
+> 📄 **Detailed Workflow:** See [SCREENS_WORKFLOW.md](./SCREENS_WORKFLOW.md) for complete state machine documentation.
+
+---
+
 ## Overview
 
-Ride Tracker is designed to help users monitor their journeys, providing real-time GPS tracking, detailed ride statistics, and history management. The application follows SOLID principles and utilizes design patterns for a robust and maintainable codebase.
+Ride Tracker helps users monitor their journeys with real-time GPS tracking, detailed ride statistics, and history management. The application follows SOLID principles and utilizes design patterns for a robust and maintainable codebase.
+
+---
 
 ## Features
 
-### 1. Home Screen (Ride Tracking)
-*   **Start/Pause/Stop Controls**: Easy-to-use buttons to manage ride tracking.
-*   **GPS Tracking**: Reads GPS coordinates at configurable intervals.
-*   **Live Timeline**: Maintains a timeline of spotted places.
-*   **Speed Calculation**: Calculates average speed between GPS readings based on distance and time.
-*   **Pause Reasons**: When pausing, users can select reasons like Break, Refreshment, Traffic, or others.
-*   **Ride Summary**: On completion, saves the ride with:
-    *   Total time and average speed.
-    *   Number of breaks.
-    *   Route plot on a map in a shareable image format.
-    *   All data saved under a single "Ride" entity.
+### 🏠 Home Screen (Ride Tracking)
+- **Start/Pause/Stop Controls** — Easy-to-use buttons to manage ride tracking
+- **GPS Tracking** — Reads GPS coordinates at configurable intervals
+- **Live Stats Dashboard** — Distance, speed (current/avg/max), elapsed time, GPS points, breaks
+- **Auto-Pause/Resume** — Automatically pauses when stationary or backgrounded
+- **Pause Reasons** — Select reasons like Break, Refreshment, Traffic, Fuel Stop, Photo Stop
+- **Ride Summary** — On completion, displays total time, distance, speeds, breaks, and route map
 
-### 2. History Screen
-*   **Ride Listing**: A comprehensive list of all previous rides.
-*   **Filtering**: Date range filters and other criteria to find specific rides.
-*   **Detailed View**: Select any ride to see full details, including the route map.
-*   **Sharing**: Share ride summaries and maps across various platforms.
+### 📋 History Screen
+- **Ride Listing** — Comprehensive list of all previous rides
+- **Filtering** — Date range, minimum distance, minimum speed, text search
+- **Detailed View** — Full ride details with route map and speed graph
+- **Sharing** — Share ride summaries and maps via native share sheet
 
-### 3. Settings Screen
-*   **GPS Accuracy**: Configure tracking precision to balance accuracy and battery life.
-*   **Google Integration**: Sign in/out with Google to save and sync ride information to Google Storage/Drive.
+### ⚙️ Settings Screen
+- **GPS Accuracy** — High / Balanced / Low modes for battery optimization
+- **Reading Interval** — 3s / 5s / 10s / 30s polling frequency
+- **Auto-Pause Settings** — Configurable thresholds and triggers
+- **Preferences** — Units (km/miles), theme, map type, notifications
+- **Google Integration** — Sign in/out with Google for Drive sync
 
-## Technical Specifications
-*   **Framework**: [Ionic Framework](https://ionicframework.com/)
-*   **Native Bridge**: [Capacitor](https://capacitorjs.com/)
-*   **Design Principles**: SOLID principles, adaptable UI for various screen sizes.
-*   **Optimization**: Battery-optimized background tracking.
+---
 
-## Development Plan
+## Technical Stack
 
-### Phase 1: Foundation (Current)
-*   [x] Initialize Ionic project with Tabs template.
-*   [x] Structure folders and rename default tabs to Home, History, and Settings.
-*   [x] Set up basic navigation and routing.
+| Component | Technology |
+|-----------|------------|
+| Framework | [Ionic Framework](https://ionicframework.com/) (Angular 20) |
+| Native Bridge | [Capacitor](https://capacitorjs.com/) 8.x |
+| Maps | [Leaflet](https://leafletjs.com/) |
+| State Management | RxJS Observables |
+| Design Principles | SOLID, State Machine Pattern |
 
-### Phase 2: Core Services
-*   [ ] Implement `RideService` for GPS tracking logic.
-*   [ ] Implement `HistoryService` for local data persistence.
-*   [ ] Implement `AuthService` for Google Sign-in.
-*   [ ] Implement `StorageService` for Google Drive/Storage sync.
+---
 
-### Phase 3: Home Screen Implementation
-*   [ ] GPS coordinate polling logic.
-*   [ ] Timeline and speed calculation algorithms.
-*   [ ] Pause/Stop modals and state management.
-*   [ ] Map integration and route plotting (static image generation).
+## Project Structure
 
-### Phase 4: History & Details
-*   [ ] List view with filtering capabilities.
-*   [ ] Detail view component.
-*   [ ] Social sharing integration.
+```
+ride-tracker/
+├── src/app/
+│   ├── home/                 # Home screen + modals
+│   │   ├── pause-modal/      # Manual pause reason selection
+│   │   ├── stop-modal/       # Stop confirmation dialog
+│   │   └── ride-summary/     # Post-ride summary component
+│   ├── history/              # History list + detail views
+│   ├── settings/             # Settings configuration
+│   ├── services/             # Core business logic
+│   │   ├── ride.service.ts         # Main ride tracking orchestrator
+│   │   ├── location.service.ts     # GPS coordinate acquisition
+│   │   ├── history.service.ts      # Local persistence
+│   │   ├── auto-pause.service.ts   # Auto-pause/resume detection
+│   │   ├── gps-monitor.service.ts  # GPS signal monitoring
+│   │   ├── settings.service.ts     # User preferences
+│   │   ├── auth.service.ts         # Google OAuth
+│   │   └── google-drive.service.ts # Cloud sync
+│   ├── models/               # TypeScript interfaces
+│   ├── pipes/                # Display formatting pipes
+│   └── utils/                # Calculation utilities
+```
 
-### Phase 5: Settings & Sync
-*   [ ] Configuration UI for GPS accuracy.
-*   [ ] Google OAuth2 implementation.
-*   [ ] Data synchronization logic.
+---
 
-### Phase 6: Refinement
-*   [ ] Battery usage optimization.
-*   [ ] UI/UX polishing for all screen sizes.
-*   [ ] Comprehensive testing on Android, iOS, and Web.
+## Development Progress
 
+### ✅ Phase 1: Foundation
+- [x] Initialize Ionic project with Tabs template
+- [x] Structure folders and rename tabs to Home, History, Settings
+- [x] Set up navigation and routing (`/tabs/home`, `/tabs/history`, `/tabs/settings`)
 
-Ref: https://www.figma.com/board/rVeytjV3OgTR21XwumnnY7/Ride-Tracker-%E2%80%94-Full-Screen-Flow?node-id=0-1&t=5vblPkksFFwIHH7k-0
+### ✅ Phase 2: Core Services
+- [x] Implement `RideService` — GPS tracking orchestrator with state machine
+- [x] Implement `LocationService` — Capacitor Geolocation wrapper
+- [x] Implement `HistoryService` — Local storage persistence
+- [x] Implement `SettingsService` — User preferences management
+- [x] Implement `AutoPauseService` — Stationary/background detection
+- [x] Implement `GpsMonitorService` — Signal loss handling
+- [x] Implement `AuthService` — Google Sign-in (scaffold)
+- [x] Implement `GoogleDriveService` — Cloud sync (scaffold)
+
+### ✅ Phase 3: Home Screen Implementation
+- [x] Ride state machine (IDLE → TRACKING → PAUSED → SUMMARY)
+- [x] Live stats dashboard (distance, speed, elapsed, GPS points, breaks)
+- [x] Pause modal with reason selection
+- [x] Stop modal with save/discard options
+- [x] Ride summary component
+- [x] Auto-pause/resume logic
+- [x] GPS signal lost handling
+
+### ✅ Phase 4: History & Details
+- [x] Rides list with reactive filtering
+- [x] Date range, distance, speed filters
+- [x] Swipe-to-delete functionality
+- [x] Share ride summary
+- [x] Detailed ride view with interactive Leaflet map
+- [x] GPX export via `GpxExportService`
+- [x] Share as image via `MapImageExportService`
+
+### 🔄 Phase 5: Settings & Sync (In Progress)
+- [x] Settings UI structure
+- [x] Units toggle (km/miles)
+- [x] Auto-pause enable/disable toggle
+- [x] Google Sign-in UI (login/logout buttons)
+- [x] Sync status display with manual sync button
+- [ ] GPS accuracy configuration UI (High/Balanced/Low)
+- [ ] Reading interval UI (3s/5s/10s/30s)
+- [ ] Auto-pause threshold settings UI
+- [ ] Theme selection (Light/Dark/System)
+- [ ] Map type selection (Street/Satellite/Terrain)
+- [ ] Push notifications toggle
+- [ ] Google OAuth2 flow completion
+- [ ] Data synchronization implementation
+
+### ⏳ Phase 6: Refinement
+- [x] Map integration (Leaflet route plotting in ride detail)
+- [x] Static map image generation for sharing
+- [ ] Mini live map during tracking
+- [ ] Speed graph in ride detail view
+- [ ] Battery usage optimization
+- [ ] UI/UX polishing for all screen sizes
+- [ ] Comprehensive testing on Android, iOS, and Web
+
+---
+
+## Getting Started
+
+```bash
+# Install dependencies
+cd ride-tracker
+npm install
+
+# Run development server
+npm start
+
+# Build for production
+npm run build
+
+# Add native platforms
+npx cap add ios
+npx cap add android
+```
+
+---
+
+## State Machine
+
+The Home screen operates as a state machine with the following states:
+
+```
+IDLE → TRACKING → PAUSED/AUTO_PAUSED → TRACKING → STOP_CONFIRMATION → RIDE_SUMMARY → IDLE
+                ↘ GPS_SIGNAL_LOST ↗
+```
+
+See [SCREENS_WORKFLOW.md](./SCREENS_WORKFLOW.md) for complete state transition documentation.
+
+---
+
+## License
+
+MIT

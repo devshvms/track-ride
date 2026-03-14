@@ -8,6 +8,7 @@ import { Ride, GpsPoint } from '../../models/ride.model';
 import { RideUtils } from '../../utils/ride-calculations';
 import { SpeedPipe, DistancePipe, DurationPipe } from '../../pipes/duration.pipe';
 import { GpxExportService } from '../../services/gpx-export.service';
+import { MapImageExportService } from '../../services/map-image-export.service';
 import * as L from 'leaflet';
 
 @Component({
@@ -26,7 +27,8 @@ export class RideDetailPage implements OnInit, AfterViewInit, OnDestroy {
     private router: Router,
     private historyService: HistoryService,
     private alertCtrl: AlertController,
-    private gpxExport: GpxExportService
+    private gpxExport: GpxExportService,
+    private mapImageExport: MapImageExportService
   ) {}
 
   ngOnInit(): void {
@@ -157,6 +159,20 @@ export class RideDetailPage implements OnInit, AfterViewInit, OnDestroy {
       const alert = await this.alertCtrl.create({
         header: 'Export Failed',
         message: 'Could not export GPX file.',
+        buttons: ['OK']
+      });
+      await alert.present();
+    }
+  }
+
+  async shareAsImage(): Promise<void> {
+    if (!this.ride) return;
+    try {
+      await this.mapImageExport.exportRideAsImage(this.ride);
+    } catch (err) {
+      const alert = await this.alertCtrl.create({
+        header: 'Export Failed',
+        message: 'Could not create map image.',
         buttons: ['OK']
       });
       await alert.present();

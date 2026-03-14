@@ -97,7 +97,11 @@
 
   <!-- Action Buttons -->
   <div class="action-buttons">
-    <ion-button expand="block" color="primary" (click)="exportGpx()">
+    <ion-button expand="block" color="success" (click)="shareAsImage()">
+      <ion-icon slot="start" name="image-outline"></ion-icon>
+      Share as Image
+    </ion-button>
+    <ion-button expand="block" color="primary" fill="outline" (click)="exportGpx()">
       <ion-icon slot="start" name="download-outline"></ion-icon>
       Export GPX
     </ion-button>
