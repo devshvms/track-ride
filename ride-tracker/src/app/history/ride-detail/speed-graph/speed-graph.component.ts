@@ -1,10 +1,11 @@
 // src/app/history/ride-detail/speed-graph/speed-graph.component.ts
 import { Component, Input, AfterViewInit, OnDestroy, ElementRef, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { GpsPoint } from '../../../models/ride.model';
-import { Chart, ChartConfiguration, registerables } from 'chart.js';
+import { GpsPoint, RideBreak } from '../../../models/ride.model';
+import { Chart, ChartConfiguration, Plugin, registerables } from 'chart.js';
+import annotationPlugin from 'chartjs-plugin-annotation';
 
-Chart.register(...registerables);
+Chart.register(...registerables, annotationPlugin);
 
 @Component({
   selector: 'app-speed-graph',
@@ -14,7 +15,10 @@ Chart.register(...registerables);
     <div class="speed-graph-container">
       <div class="graph-header">
         <span class="graph-title">Speed Over Time</span>
-        <span class="graph-unit">{{ units === 'miles' ? 'mph' : 'km/h' }}</span>
+        <div class="graph-legend">
+          <span class="legend-item"><span class="legend-color speed"></span>Speed</span>
+          <span class="legend-item" *ngIf="breaks.length > 0"><span class="legend-color pause"></span>Paused</span>
+        </div>
       </div>
       <canvas #chartCanvas></canvas>
     </div>
@@ -41,9 +45,32 @@ Chart.register(...registerables);
       color: var(--ion-color-dark);
     }
     
-    .graph-unit {
-      font-size: 0.8rem;
+    .graph-legend {
+      display: flex;
+      gap: 12px;
+      font-size: 0.75rem;
       color: var(--ion-color-medium);
+    }
+    
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    
+    .legend-color {
+      width: 12px;
+      height: 12px;
+      border-radius: 2px;
+    }
+    
+    .legend-color.speed {
+      background: #3880ff;
+    }
+    
+    .legend-color.pause {
+      background: rgba(255, 196, 9, 0.3);
+      border: 1px solid rgba(255, 196, 9, 0.6);
     }
     
     canvas {
@@ -54,6 +81,7 @@ Chart.register(...registerables);
 })
 export class SpeedGraphComponent implements AfterViewInit, OnDestroy {
   @Input() points: GpsPoint[] = [];
+  @Input() breaks: RideBreak[] = [];
   @Input() units: 'km' | 'miles' = 'km';
   
   @ViewChild('chartCanvas') chartCanvas!: ElementRef<HTMLCanvasElement>;
@@ -91,9 +119,11 @@ export class SpeedGraphComponent implements AfterViewInit, OnDestroy {
       return Math.round(speed * 10) / 10;
     });
 
-    // Calculate max and avg for reference lines
+    // Calculate max for y-axis
     const maxSpeed = Math.max(...speedData);
-    const avgSpeed = speedData.reduce((a, b) => a + b, 0) / speedData.length;
+
+    // Create pause interval annotations
+    const pauseAnnotations = this.createPauseAnnotations(startTime);
 
     const config: ChartConfiguration = {
       type: 'line',
@@ -134,6 +164,9 @@ export class SpeedGraphComponent implements AfterViewInit, OnDestroy {
               title: (items) => `${items[0].label} min`,
               label: (item) => `${item.raw} ${this.units === 'miles' ? 'mph' : 'km/h'}`
             }
+          },
+          annotation: {
+            annotations: pauseAnnotations
           }
         },
         scales: {
@@ -172,5 +205,30 @@ export class SpeedGraphComponent implements AfterViewInit, OnDestroy {
     };
 
     this.chart = new Chart(ctx, config);
+  }
+
+  private createPauseAnnotations(startTime: number): Record<string, any> {
+    const annotations: Record<string, any> = {};
+    
+    this.breaks.forEach((brk, index) => {
+      if (brk.endTime) {
+        const startMin = (brk.startTime - startTime) / 1000 / 60;
+        const endMin = (brk.endTime - startTime) / 1000 / 60;
+        
+        annotations[`pause${index}`] = {
+          type: 'box',
+          xMin: startMin.toFixed(1),
+          xMax: endMin.toFixed(1),
+          backgroundColor: 'rgba(255, 196, 9, 0.2)',
+          borderColor: 'rgba(255, 196, 9, 0.5)',
+          borderWidth: 1,
+          label: {
+            display: false
+          }
+        };
+      }
+    });
+    
+    return annotations;
   }
 }

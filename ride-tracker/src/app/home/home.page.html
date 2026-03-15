@@ -65,68 +65,67 @@
         (currentState$ | async) === RideState.GPS_SIGNAL_LOST
       ) {
         <ng-container *ngIf="currentRide$ | async as ride">
+          <!-- Scrollable content wrapper -->
+          <div class="tracking-content">
+            <!-- Mini Live Map -->
+            <app-live-map 
+              [points]="ride.points" 
+              [isTracking]="(currentState$ | async) === RideState.TRACKING">
+            </app-live-map>
 
-          <!-- Mini Live Map -->
-          <app-live-map 
-            [points]="ride.points" 
-            [isTracking]="(currentState$ | async) === RideState.TRACKING">
-          </app-live-map>
+            <!-- Timer prominent display -->
+            <div class="elapsed-display">
+              <span class="elapsed-time">{{ (elapsed$ | async) | apply:formatElapsed }}</span>
+              <span class="elapsed-label">elapsed</span>
+            </div>
 
-          <!-- Timer prominent display -->
-          <div class="elapsed-display">
-            <span class="elapsed-time">{{ (elapsed$ | async) | apply:formatElapsed }}</span>
-            <span class="elapsed-label">elapsed</span>
+            <!-- Stats Grid — 6 cards per workflow (distance, speed, avg, max, breaks, GPS pts) -->
+            <div class="stats-grid">
+              <div class="stat-card">
+                <span class="stat-value">{{ ride.totalDistance | distance }}</span>
+                <span class="stat-label">km</span>
+                <span class="stat-name">Distance</span>
+              </div>
+              <div class="stat-card">
+                <span class="stat-value">
+                  {{ (ride.points.length > 0 ? (ride.points[ride.points.length-1].speed ?? 0) : 0) | speed }}
+                </span>
+                <span class="stat-label">km/h</span>
+                <span class="stat-name">Speed</span>
+              </div>
+              <div class="stat-card">
+                <span class="stat-value">{{ ride.averageSpeed | speed }}</span>
+                <span class="stat-label">km/h</span>
+                <span class="stat-name">Avg Speed</span>
+              </div>
+              <div class="stat-card">
+                <span class="stat-value">{{ ride.maxSpeed | speed }}</span>
+                <span class="stat-label">km/h</span>
+                <span class="stat-name">Max Speed</span>
+              </div>
+              <div class="stat-card">
+                <span class="stat-value">{{ ride.breaks.length }}</span>
+                <span class="stat-label"></span>
+                <span class="stat-name">Breaks</span>
+              </div>
+              <div class="stat-card">
+                <span class="stat-value">{{ ride.points.length }}</span>
+                <span class="stat-label"></span>
+                <span class="stat-name">GPS Pts</span>
+              </div>
+            </div>
+
+            <!-- Pause reason indicator while paused -->
+            @if (
+              (currentState$ | async) === RideState.PAUSED &&
+              ride.breaks.length > 0
+            ) {
+              <div class="pause-reason-chip">
+                <ion-icon name="pause-circle"></ion-icon>
+                <span>{{ ride.breaks[ride.breaks.length-1].reason | titlecase }}</span>
+              </div>
+            }
           </div>
-
-          <!-- Stats Grid — 6 cards per workflow (distance, speed, avg, max, breaks, GPS pts) -->
-          <div class="stats-grid">
-            <div class="stat-card">
-              <span class="stat-value">{{ ride.totalDistance | distance }}</span>
-              <span class="stat-label">km</span>
-              <span class="stat-name">Distance</span>
-            </div>
-            <div class="stat-card">
-              <span class="stat-value">
-                {{ (ride.points.length > 0 ? (ride.points[ride.points.length-1].speed ?? 0) : 0) | speed }}
-              </span>
-              <span class="stat-label">km/h</span>
-              <span class="stat-name">Speed</span>
-            </div>
-            <div class="stat-card">
-              <span class="stat-value">{{ ride.averageSpeed | speed }}</span>
-              <span class="stat-label">km/h</span>
-              <span class="stat-name">Avg Speed</span>
-            </div>
-            <!-- FIX: maxSpeed card was missing from workflow -->
-            <div class="stat-card">
-              <span class="stat-value">{{ ride.maxSpeed | speed }}</span>
-              <span class="stat-label">km/h</span>
-              <span class="stat-name">Max Speed</span>
-            </div>
-            <div class="stat-card">
-              <span class="stat-value">{{ ride.breaks.length }}</span>
-              <span class="stat-label"></span>
-              <span class="stat-name">Breaks</span>
-            </div>
-            <!-- FIX: GPS points count was missing from workflow -->
-            <div class="stat-card">
-              <span class="stat-value">{{ ride.points.length }}</span>
-              <span class="stat-label"></span>
-              <span class="stat-name">GPS Pts</span>
-            </div>
-          </div>
-
-          <!-- Pause reason indicator while paused -->
-          @if (
-            (currentState$ | async) === RideState.PAUSED &&
-            ride.breaks.length > 0
-          ) {
-            <div class="pause-reason-chip">
-              <ion-icon name="pause-circle"></ion-icon>
-              <span>{{ ride.breaks[ride.breaks.length-1].reason | titlecase }}</span>
-            </div>
-          }
-
         </ng-container>
       }
 

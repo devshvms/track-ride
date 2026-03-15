@@ -1,12 +1,13 @@
 // src/app/services/map-image-export.service.ts
 import { Injectable } from '@angular/core';
-import { Ride, GpsPoint } from '../models/ride.model';
+import { Ride } from '../models/ride.model';
 import { RideUtils } from '../utils/ride-calculations';
 import { Share } from '@capacitor/share';
 import { Filesystem, Directory } from '@capacitor/filesystem';
+import html2canvas from 'html2canvas';
 
 export interface MapExportOptions {
-  aspectRatio?: '16:9' | '4:3';
+  mapElement?: HTMLElement;
   showDetails?: boolean;
 }
 
@@ -14,50 +15,58 @@ export interface MapExportOptions {
 export class MapImageExportService {
 
   /**
-   * Creates a map image with route, markers, and ride details overlay.
-   * Uses Canvas API directly for reliable rendering.
+   * Captures the actual rendered Leaflet map view and adds ride details overlay.
+   * User should adjust the map zoom/pan before calling this for best results.
    */
   async exportRideAsImage(ride: Ride, options: MapExportOptions = {}): Promise<void> {
-    const { aspectRatio = '16:9', showDetails = true } = options;
+    const { mapElement, showDetails = true } = options;
 
     if (!ride.points || ride.points.length === 0) {
       throw new Error('No GPS points to export');
     }
 
-    // Standard dimensions based on aspect ratio
-    const width = aspectRatio === '16:9' ? 1280 : 1024;
-    const height = aspectRatio === '16:9' ? 720 : 768;
+    // Find the map element if not provided
+    const mapEl = mapElement || document.getElementById('ride-map');
+    if (!mapEl) {
+      throw new Error('Map element not found');
+    }
 
-    // Create canvas
-    const canvas = document.createElement('canvas');
-    canvas.width = width;
-    canvas.height = height;
-    const ctx = canvas.getContext('2d')!;
+    // Wait for tiles to load
+    await this.waitForTilesToLoad(mapEl);
 
-    // Calculate bounds
-    const bounds = this.calculateBounds(ride.points);
-    const padding = 60; // pixels
+    // Capture the map using html2canvas
+    const mapCanvas = await html2canvas(mapEl, {
+      useCORS: true,
+      allowTaint: true,
+      scale: 2, // Higher resolution
+      logging: false,
+      backgroundColor: '#f2efe9'
+    });
 
-    // Load and draw map tiles
-    await this.drawMapTiles(ctx, bounds, width, height, padding);
+    // Create final canvas with map + details overlay
+    const finalWidth = mapCanvas.width;
+    const finalHeight = mapCanvas.height + (showDetails ? 160 : 0);
+    
+    const finalCanvas = document.createElement('canvas');
+    finalCanvas.width = finalWidth;
+    finalCanvas.height = finalHeight;
+    const ctx = finalCanvas.getContext('2d')!;
 
-    // Draw route polyline
-    this.drawRoute(ctx, ride.points, bounds, width, height, padding);
+    // Draw white background
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, finalWidth, finalHeight);
 
-    // Draw start marker (green)
-    this.drawMarker(ctx, ride.points[0], bounds, width, height, padding, '#2dd36f', 'S');
+    // Draw the captured map
+    ctx.drawImage(mapCanvas, 0, 0);
 
-    // Draw end marker (red)
-    this.drawMarker(ctx, ride.points[ride.points.length - 1], bounds, width, height, padding, '#eb445a', 'E');
-
-    // Draw details overlay
+    // Draw details overlay below the map
     if (showDetails) {
-      this.drawDetailsOverlay(ctx, ride, width, height);
+      this.drawDetailsOverlay(ctx, ride, finalWidth, mapCanvas.height);
     }
 
     // Convert to blob and share
     const blob = await new Promise<Blob>((resolve, reject) => {
-      canvas.toBlob(blob => {
+      finalCanvas.toBlob(blob => {
         if (blob) resolve(blob);
         else reject(new Error('Failed to create image'));
       }, 'image/png', 0.95);
@@ -66,268 +75,158 @@ export class MapImageExportService {
     await this.shareImage(blob, ride);
   }
 
-  private calculateBounds(points: GpsPoint[]): { minLat: number; maxLat: number; minLng: number; maxLng: number } {
-    let minLat = Infinity, maxLat = -Infinity;
-    let minLng = Infinity, maxLng = -Infinity;
-
-    for (const p of points) {
-      minLat = Math.min(minLat, p.latitude);
-      maxLat = Math.max(maxLat, p.latitude);
-      minLng = Math.min(minLng, p.longitude);
-      maxLng = Math.max(maxLng, p.longitude);
-    }
-
-    // Add some margin
-    const latMargin = (maxLat - minLat) * 0.15 || 0.002;
-    const lngMargin = (maxLng - minLng) * 0.15 || 0.002;
-
-    return {
-      minLat: minLat - latMargin,
-      maxLat: maxLat + latMargin,
-      minLng: minLng - lngMargin,
-      maxLng: maxLng + lngMargin
-    };
-  }
-
-  private latLngToPixel(
-    lat: number, lng: number,
-    bounds: { minLat: number; maxLat: number; minLng: number; maxLng: number },
-    width: number, height: number, padding: number
-  ): { x: number; y: number } {
-    const drawWidth = width - padding * 2;
-    const drawHeight = height - padding * 2;
-
-    const x = padding + ((lng - bounds.minLng) / (bounds.maxLng - bounds.minLng)) * drawWidth;
-    const y = padding + ((bounds.maxLat - lat) / (bounds.maxLat - bounds.minLat)) * drawHeight;
-
-    return { x, y };
-  }
-
-  private async drawMapTiles(
-    ctx: CanvasRenderingContext2D,
-    bounds: { minLat: number; maxLat: number; minLng: number; maxLng: number },
-    width: number, height: number, padding: number
+  /**
+   * Alternative method: capture map element directly from the page.
+   * Call this from ride-detail page with the map container reference.
+   */
+  async captureMapSnapshot(
+    mapContainer: HTMLElement,
+    ride: Ride,
+    showDetails = true
   ): Promise<void> {
-    // Fill background
-    ctx.fillStyle = '#f2efe9';
-    ctx.fillRect(0, 0, width, height);
+    // Wait a bit for any pending tile loads
+    await this.waitForTilesToLoad(mapContainer);
 
-    // Calculate zoom level and tiles needed
-    const centerLat = (bounds.minLat + bounds.maxLat) / 2;
-    const centerLng = (bounds.minLng + bounds.maxLng) / 2;
-    const zoom = this.calculateZoom(bounds, width - padding * 2, height - padding * 2);
-
-    // Get tile coordinates
-    const tiles = this.getTilesForBounds(bounds, zoom);
-
-    // Load all tiles
-    const tilePromises: Promise<void>[] = [];
-
-    for (const tile of tiles) {
-      const url = `https://tile.openstreetmap.org/${zoom}/${tile.x}/${tile.y}.png`;
-      const tilePromise = this.loadAndDrawTile(ctx, url, tile, zoom, bounds, width, height, padding);
-      tilePromises.push(tilePromise);
-    }
-
-    await Promise.all(tilePromises);
-  }
-
-  private calculateZoom(
-    bounds: { minLat: number; maxLat: number; minLng: number; maxLng: number },
-    width: number, height: number
-  ): number {
-    const latDiff = bounds.maxLat - bounds.minLat;
-    const lngDiff = bounds.maxLng - bounds.minLng;
-
-    // Calculate zoom based on bounds
-    const latZoom = Math.log2(180 / latDiff) + 1;
-    const lngZoom = Math.log2(360 / lngDiff) + 1;
-
-    // Max zoom 16 to prevent over-zooming on short routes
-    // OSM zoom levels: 0 = world, 18 = street level
-    // 16 = neighborhood level (~150m per tile width)
-    const MAX_ZOOM = 16;
-    return Math.min(Math.floor(Math.min(latZoom, lngZoom)), MAX_ZOOM);
-  }
-
-  private getTilesForBounds(
-    bounds: { minLat: number; maxLat: number; minLng: number; maxLng: number },
-    zoom: number
-  ): { x: number; y: number }[] {
-    const tiles: { x: number; y: number }[] = [];
-
-    const minTileX = this.lngToTileX(bounds.minLng, zoom);
-    const maxTileX = this.lngToTileX(bounds.maxLng, zoom);
-    const minTileY = this.latToTileY(bounds.maxLat, zoom);
-    const maxTileY = this.latToTileY(bounds.minLat, zoom);
-
-    for (let x = minTileX; x <= maxTileX; x++) {
-      for (let y = minTileY; y <= maxTileY; y++) {
-        tiles.push({ x, y });
+    // Capture with html2canvas
+    const mapCanvas = await html2canvas(mapContainer, {
+      useCORS: true,
+      allowTaint: true,
+      scale: 2,
+      logging: false,
+      backgroundColor: '#f2efe9',
+      onclone: (clonedDoc) => {
+        // Ensure map tiles are visible in clone
+        const clonedMap = clonedDoc.getElementById('ride-map');
+        if (clonedMap) {
+          clonedMap.style.overflow = 'visible';
+        }
       }
-    }
-
-    return tiles;
-  }
-
-  private lngToTileX(lng: number, zoom: number): number {
-    return Math.floor((lng + 180) / 360 * Math.pow(2, zoom));
-  }
-
-  private latToTileY(lat: number, zoom: number): number {
-    return Math.floor((1 - Math.log(Math.tan(lat * Math.PI / 180) + 1 / Math.cos(lat * Math.PI / 180)) / Math.PI) / 2 * Math.pow(2, zoom));
-  }
-
-  private tileXToLng(x: number, zoom: number): number {
-    return x / Math.pow(2, zoom) * 360 - 180;
-  }
-
-  private tileYToLat(y: number, zoom: number): number {
-    const n = Math.PI - 2 * Math.PI * y / Math.pow(2, zoom);
-    return 180 / Math.PI * Math.atan(0.5 * (Math.exp(n) - Math.exp(-n)));
-  }
-
-  private async loadAndDrawTile(
-    ctx: CanvasRenderingContext2D,
-    url: string,
-    tile: { x: number; y: number },
-    zoom: number,
-    bounds: { minLat: number; maxLat: number; minLng: number; maxLng: number },
-    width: number, height: number, padding: number
-  ): Promise<void> {
-    return new Promise((resolve) => {
-      const img = new Image();
-      img.crossOrigin = 'anonymous';
-      img.onload = () => {
-        // Calculate tile bounds in lat/lng
-        const tileLngMin = this.tileXToLng(tile.x, zoom);
-        const tileLngMax = this.tileXToLng(tile.x + 1, zoom);
-        const tileLatMax = this.tileYToLat(tile.y, zoom);
-        const tileLatMin = this.tileYToLat(tile.y + 1, zoom);
-
-        // Convert to pixel coordinates
-        const topLeft = this.latLngToPixel(tileLatMax, tileLngMin, bounds, width, height, padding);
-        const bottomRight = this.latLngToPixel(tileLatMin, tileLngMax, bounds, width, height, padding);
-
-        const tileWidth = bottomRight.x - topLeft.x;
-        const tileHeight = bottomRight.y - topLeft.y;
-
-        ctx.drawImage(img, topLeft.x, topLeft.y, tileWidth, tileHeight);
-        resolve();
-      };
-      img.onerror = () => resolve(); // Skip failed tiles
-      img.src = url;
     });
-  }
 
-  private drawRoute(
-    ctx: CanvasRenderingContext2D,
-    points: GpsPoint[],
-    bounds: { minLat: number; maxLat: number; minLng: number; maxLng: number },
-    width: number, height: number, padding: number
-  ): void {
-    if (points.length < 2) return;
+    // Create final canvas
+    const padding = 20;
+    const detailsHeight = showDetails ? 140 : 0;
+    const finalWidth = mapCanvas.width + padding * 2;
+    const finalHeight = mapCanvas.height + detailsHeight + padding * 2;
 
-    ctx.beginPath();
-    ctx.strokeStyle = '#3880ff';
-    ctx.lineWidth = 6;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
+    const finalCanvas = document.createElement('canvas');
+    finalCanvas.width = finalWidth;
+    finalCanvas.height = finalHeight;
+    const ctx = finalCanvas.getContext('2d')!;
 
-    const first = this.latLngToPixel(points[0].latitude, points[0].longitude, bounds, width, height, padding);
-    ctx.moveTo(first.x, first.y);
+    // Background
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, finalWidth, finalHeight);
 
-    for (let i = 1; i < points.length; i++) {
-      const p = this.latLngToPixel(points[i].latitude, points[i].longitude, bounds, width, height, padding);
-      ctx.lineTo(p.x, p.y);
+    // Draw map with padding
+    ctx.drawImage(mapCanvas, padding, padding);
+
+    // Draw details below map
+    if (showDetails) {
+      this.drawDetailsOverlay(ctx, ride, finalWidth, mapCanvas.height + padding);
     }
 
-    ctx.stroke();
+    // Convert and share
+    const blob = await new Promise<Blob>((resolve, reject) => {
+      finalCanvas.toBlob(blob => {
+        if (blob) resolve(blob);
+        else reject(new Error('Failed to create image'));
+      }, 'image/png', 0.95);
+    });
+
+    await this.shareImage(blob, ride);
   }
 
-  private drawMarker(
+  private async waitForTilesToLoad(mapEl: HTMLElement): Promise<void> {
+    // Wait for tile images to load
+    const tiles = mapEl.querySelectorAll('.leaflet-tile');
+    const loadPromises: Promise<void>[] = [];
+
+    tiles.forEach(tile => {
+      if (tile instanceof HTMLImageElement && !tile.complete) {
+        loadPromises.push(new Promise(resolve => {
+          tile.onload = () => resolve();
+          tile.onerror = () => resolve();
+          // Timeout after 3s
+          setTimeout(resolve, 3000);
+        }));
+      }
+    });
+
+    if (loadPromises.length > 0) {
+      await Promise.all(loadPromises);
+    }
+
+    // Additional delay to ensure rendering is complete
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+
+  private drawDetailsOverlay(
     ctx: CanvasRenderingContext2D,
-    point: GpsPoint,
-    bounds: { minLat: number; maxLat: number; minLng: number; maxLng: number },
-    width: number, height: number, padding: number,
-    color: string, label: string
+    ride: Ride,
+    width: number,
+    yOffset: number
   ): void {
-    const { x, y } = this.latLngToPixel(point.latitude, point.longitude, bounds, width, height, padding);
-    const radius = 14;
-
-    // Outer white circle
-    ctx.beginPath();
-    ctx.arc(x, y, radius + 3, 0, Math.PI * 2);
-    ctx.fillStyle = '#ffffff';
-    ctx.fill();
-
-    // Inner colored circle
-    ctx.beginPath();
-    ctx.arc(x, y, radius, 0, Math.PI * 2);
-    ctx.fillStyle = color;
-    ctx.fill();
-
-    // Label
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 14px -apple-system, BlinkMacSystemFont, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(label, x, y);
-  }
-
-  private drawDetailsOverlay(ctx: CanvasRenderingContext2D, ride: Ride, width: number, height: number): void {
     const duration = ride.endTime ? ride.endTime - ride.startTime : 0;
+    const activeDuration = duration - (ride.totalPausedTime ?? 0);
     const distKm = (ride.totalDistance / 1000).toFixed(2);
     const avgKph = RideUtils.msToKph(ride.averageSpeed).toFixed(1);
     const maxKph = RideUtils.msToKph(ride.maxSpeed).toFixed(1);
-    const durationStr = RideUtils.formatDuration(duration);
+    const durationStr = RideUtils.formatDuration(activeDuration);
     const dateStr = new Date(ride.startTime).toLocaleDateString('en-US', {
-      weekday: 'short',
+      weekday: 'long',
       month: 'short',
-      day: 'numeric'
+      day: 'numeric',
+      year: 'numeric'
     });
 
-    // Overlay box dimensions
-    const boxWidth = 180;
-    const boxHeight = 130;
-    const boxX = width - boxWidth - 20;
-    const boxY = height - boxHeight - 20;
-    const borderRadius = 12;
+    const boxY = yOffset + 20;
+    const boxPadding = 30;
 
-    // Draw rounded rectangle background
-    ctx.beginPath();
-    ctx.roundRect(boxX, boxY, boxWidth, boxHeight, borderRadius);
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
-    ctx.fill();
+    // Stats row background
+    ctx.fillStyle = '#1a1a1a';
+    ctx.fillRect(0, boxY, width, 120);
 
-    // Text settings
-    ctx.fillStyle = '#ffffff';
-    ctx.textAlign = 'left';
+    // Stats - 4 columns
+    const colWidth = width / 4;
+    const stats = [
+      { value: distKm, unit: 'km', label: 'Distance' },
+      { value: durationStr, unit: '', label: 'Duration' },
+      { value: avgKph, unit: 'km/h', label: 'Avg Speed' },
+      { value: maxKph, unit: 'km/h', label: 'Max Speed' }
+    ];
 
-    // Distance (large)
-    ctx.font = 'bold 22px -apple-system, BlinkMacSystemFont, sans-serif';
-    ctx.fillText(`🚴 ${distKm} km`, boxX + 14, boxY + 28);
+    ctx.textAlign = 'center';
 
-    // Duration
-    ctx.font = '14px -apple-system, BlinkMacSystemFont, sans-serif';
-    ctx.fillStyle = 'rgba(255,255,255,0.9)';
-    ctx.fillText(`⏱ ${durationStr}`, boxX + 14, boxY + 52);
+    stats.forEach((stat, i) => {
+      const x = colWidth * i + colWidth / 2;
 
-    // Avg speed
-    ctx.fillText(`⚡ Avg: ${avgKph} km/h`, boxX + 14, boxY + 72);
+      // Value
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 28px -apple-system, BlinkMacSystemFont, sans-serif';
+      ctx.fillText(stat.value, x, boxY + 45);
 
-    // Max speed
-    ctx.fillText(`🔝 Max: ${maxKph} km/h`, boxX + 14, boxY + 92);
+      // Unit
+      if (stat.unit) {
+        ctx.fillStyle = 'rgba(255,255,255,0.7)';
+        ctx.font = '14px -apple-system, BlinkMacSystemFont, sans-serif';
+        ctx.fillText(stat.unit, x, boxY + 65);
+      }
 
-    // Date
-    ctx.font = '11px -apple-system, BlinkMacSystemFont, sans-serif';
-    ctx.fillStyle = 'rgba(255,255,255,0.6)';
-    ctx.fillText(dateStr, boxX + 14, boxY + 112);
+      // Label
+      ctx.fillStyle = 'rgba(255,255,255,0.5)';
+      ctx.font = '12px -apple-system, BlinkMacSystemFont, sans-serif';
+      ctx.fillText(stat.label.toUpperCase(), x, boxY + 95);
+    });
 
-    // Branding
-    ctx.textAlign = 'right';
+    // Date and branding at bottom
     ctx.fillStyle = 'rgba(255,255,255,0.4)';
-    ctx.fillText('RideTracker', boxX + boxWidth - 14, boxY + 112);
+    ctx.font = '11px -apple-system, BlinkMacSystemFont, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText(dateStr, boxPadding, boxY + 110);
+
+    ctx.textAlign = 'right';
+    ctx.fillText('🚴 RideTracker', width - boxPadding, boxY + 110);
   }
 
   private async shareImage(blob: Blob, ride: Ride): Promise<void> {

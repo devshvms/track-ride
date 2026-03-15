@@ -26,7 +26,8 @@
   <!-- Speed Graph -->
   <app-speed-graph 
     *ngIf="ride.points.length >= 2" 
-    [points]="ride.points" 
+    [points]="ride.points"
+    [breaks]="ride.breaks"
     [units]="units">
   </app-speed-graph>
 

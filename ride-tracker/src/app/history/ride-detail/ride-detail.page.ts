@@ -176,11 +176,17 @@ export class RideDetailPage implements OnInit, AfterViewInit, OnDestroy {
   async shareAsImage(): Promise<void> {
     if (!this.ride) return;
     try {
-      await this.mapImageExport.exportRideAsImage(this.ride);
+      // Get the map container element for snapshot
+      const mapContainer = document.querySelector('.map-container') as HTMLElement;
+      if (mapContainer) {
+        await this.mapImageExport.captureMapSnapshot(mapContainer, this.ride);
+      } else {
+        await this.mapImageExport.exportRideAsImage(this.ride);
+      }
     } catch (err) {
       const alert = await this.alertCtrl.create({
         header: 'Export Failed',
-        message: 'Could not create map image.',
+        message: 'Could not create map image. Please try adjusting the map view and try again.',
         buttons: ['OK']
       });
       await alert.present();
