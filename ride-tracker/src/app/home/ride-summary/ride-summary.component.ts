@@ -130,8 +130,10 @@ export class RideSummaryComponent implements AfterViewInit, OnDestroy {
 
   async shareAsImage(ride: Ride): Promise<void> {
     try {
-      await this.mapImageExport.exportRideAsImage(ride);
-    } catch {
+      const mapElement = document.getElementById('summary-map');
+      await this.mapImageExport.exportRideAsImage(ride, { mapElement: mapElement ?? undefined });
+    } catch (err) {
+      console.error('Share image error:', err);
       alert('Could not create map image.');
     }
   }
