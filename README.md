@@ -151,11 +151,104 @@ npm start
 
 # Build for production
 npm run build
-
-# Add native platforms
-npx cap add ios
-npx cap add android
 ```
+
+---
+
+## Android Build
+
+### Prerequisites
+
+1. **Android Studio** — [Download](https://developer.android.com/studio)
+2. **Android SDK** — Install via Android Studio SDK Manager
+3. **Java JDK 17+** — Required for Gradle builds
+
+### Step-by-Step Build Commands
+
+```bash
+# 1. Navigate to project directory
+cd ride-tracker
+
+# 2. Install dependencies (if not already done)
+npm install
+
+# 3. Build the web app for production
+npm run build
+
+# 4. Install Capacitor Android platform (already included in package.json)
+npm install @capacitor/android
+
+# 5. Add Android platform (creates android/ folder)
+npx cap add android
+
+# 6. Sync web assets and plugins to Android
+npx cap sync android
+
+# 7. Open in Android Studio (recommended for first build)
+npx cap open android
+```
+
+### Build APK via Command Line
+
+```bash
+# Navigate to android folder
+cd ride-tracker/android
+
+# Build debug APK
+./gradlew assembleDebug
+
+# Build release APK (unsigned)
+./gradlew assembleRelease
+```
+
+**Output locations:**
+- Debug APK: `android/app/build/outputs/apk/debug/app-debug.apk`
+- Release APK: `android/app/build/outputs/apk/release/app-release-unsigned.apk`
+
+### Run on Connected Device
+
+```bash
+# From ride-tracker directory
+npx cap run android
+```
+
+### After Code Changes
+
+```bash
+# Rebuild web app and sync to Android
+npm run build && npx cap sync android
+```
+
+---
+
+## iOS Build
+
+### Prerequisites
+
+1. **macOS** with Xcode installed
+2. **Xcode Command Line Tools** — `xcode-select --install`
+3. **CocoaPods** — `sudo gem install cocoapods`
+
+### Step-by-Step Build Commands
+
+```bash
+# 1. Navigate to project directory
+cd ride-tracker
+
+# 2. Build the web app
+npm run build
+
+# 3. Add iOS platform
+npx cap add ios
+
+# 4. Sync web assets and plugins
+npx cap sync ios
+
+# 5. Open in Xcode
+npx cap open ios
+```
+
+Build and run from Xcode for device/simulator deployment.
 
 ---
 
