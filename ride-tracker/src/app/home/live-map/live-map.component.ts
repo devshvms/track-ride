@@ -1,5 +1,5 @@
 // src/app/home/live-map/live-map.component.ts
-import { Component, Input, OnChanges, OnDestroy, AfterViewInit, SimpleChanges, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
+import { Component, Input, OnChanges, OnDestroy, AfterViewInit, SimpleChanges, CUSTOM_ELEMENTS_SCHEMA, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { IonicModule } from '@ionic/angular';
 import { GpsPoint } from '../../models/ride.model';
@@ -12,7 +12,7 @@ import * as L from 'leaflet';
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   template: `
     <div class="live-map-container" [class.expanded]="expanded" (click)="toggleExpand()">
-      <div id="live-map" class="live-map"></div>
+      <div #liveMapEl class="live-map"></div>
       <div class="map-overlay">
         <ion-icon [name]="expanded ? 'contract-outline' : 'expand-outline'"></ion-icon>
       </div>
@@ -61,6 +61,7 @@ import * as L from 'leaflet';
   `]
 })
 export class LiveMapComponent implements AfterViewInit, OnChanges, OnDestroy {
+  @ViewChild('liveMapEl') mapElementRef!: ElementRef<HTMLDivElement>;
   @Input() points: GpsPoint[] = [];
   @Input() isTracking = false;
 
@@ -99,10 +100,10 @@ export class LiveMapComponent implements AfterViewInit, OnChanges, OnDestroy {
   }
 
   private initMap(): void {
-    const mapElement = document.getElementById('live-map');
+    const mapElement = this.mapElementRef?.nativeElement;
     if (!mapElement || this.map) return;
 
-    this.map = L.map('live-map', {
+    this.map = L.map(mapElement, {
       zoomControl: false,
       attributionControl: false,
       dragging: true,

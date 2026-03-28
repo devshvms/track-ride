@@ -1,10 +1,10 @@
 // src/app/home/ride-summary/ride-summary.component.ts
-import { Component, EventEmitter, Output, AfterViewInit, OnDestroy } from '@angular/core';
+import { Component, EventEmitter, Output, AfterViewInit, OnDestroy, ViewChild, ElementRef } from '@angular/core';
 import { RideService } from '../../services/ride.service';
 import { SettingsService } from '../../services/settings.service';
 import { Ride } from '../../models/ride.model';
 import { Observable } from 'rxjs';
-import { map } from 'rxjs/operators';
+import { map, take } from 'rxjs/operators';
 import { IonicModule } from '@ionic/angular';
 import { CommonModule } from '@angular/common';
 import { RideUtils } from '../../utils/ride-calculations';
@@ -20,6 +20,7 @@ import { MapImageExportService } from '../../services/map-image-export.service';
   imports: [IonicModule, CommonModule, SpeedPipe, DistancePipe, DurationPipe]
 })
 export class RideSummaryComponent implements AfterViewInit, OnDestroy {
+  @ViewChild('summaryMapEl') mapElementRef!: ElementRef<HTMLDivElement>;
   private map: L.Map | null = null;
   /** FIX: emit event so parent (HomePage) can navigate to history tab */
   @Output() viewHistory = new EventEmitter<void>();
@@ -48,20 +49,21 @@ export class RideSummaryComponent implements AfterViewInit, OnDestroy {
   }
 
   private initMap(): void {
-    this.ride$.subscribe(ride => {
+    this.ride$.pipe(take(1)).subscribe(ride => {
       if (!ride || ride.points.length === 0) return;
       if (this.map) return; // Already initialized
 
-      const mapElement = document.getElementById('summary-map');
+      const mapElement = this.mapElementRef?.nativeElement;
       if (!mapElement) return;
 
       const latlngs: L.LatLngExpression[] = ride.points.map(p => [p.latitude, p.longitude]);
 
-      this.map = L.map('summary-map', {
+      this.map = L.map(mapElement, {
         zoomControl: false,
         attributionControl: false,
         dragging: false,
-        scrollWheelZoom: false
+        scrollWheelZoom: false,
+        preferCanvas: false
       });
 
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(this.map);
@@ -82,7 +84,7 @@ export class RideSummaryComponent implements AfterViewInit, OnDestroy {
       }).addTo(this.map);
 
       this.map.fitBounds(routeLine.getBounds(), { padding: [20, 20] });
-    }).unsubscribe;
+    });
   }
 
   closeSummary(): void {
@@ -130,7 +132,11 @@ export class RideSummaryComponent implements AfterViewInit, OnDestroy {
 
   async shareAsImage(ride: Ride): Promise<void> {
     try {
-      const mapElement = document.getElementById('summary-map');
+      const mapElement = this.mapElementRef?.nativeElement;
+      if (mapElement && this.map) {
+        // Store reference to map instance on the element for the export service
+        (mapElement as any)._leaflet_map = this.map;
+      }
       await this.mapImageExport.exportRideAsImage(ride, { mapElement: mapElement ?? undefined });
     } catch (err) {
       console.error('Share image error:', err);

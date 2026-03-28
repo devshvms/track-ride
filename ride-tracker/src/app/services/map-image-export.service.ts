@@ -31,16 +31,26 @@ export class MapImageExportService {
       throw new Error('Map element not found');
     }
 
+    // Force Leaflet to recalculate dimensions and invalidate size
+    await this.prepareMapForCapture(mapEl);
+
     // Wait for tiles to load
     await this.waitForTilesToLoad(mapEl);
+
+    // Use device pixel ratio for proper scaling
+    const pixelRatio = window.devicePixelRatio || 1;
 
     // Capture the map using html2canvas
     const mapCanvas = await html2canvas(mapEl, {
       useCORS: true,
       allowTaint: true,
-      scale: 2, // Higher resolution
+      scale: pixelRatio,
       logging: false,
-      backgroundColor: '#f2efe9'
+      backgroundColor: '#f2efe9',
+      width: mapEl.offsetWidth,
+      height: mapEl.offsetHeight,
+      windowWidth: mapEl.offsetWidth,
+      windowHeight: mapEl.offsetHeight
     });
 
     // Create final canvas with map + details overlay
@@ -84,16 +94,26 @@ export class MapImageExportService {
     ride: Ride,
     showDetails = true
   ): Promise<void> {
-    // Wait a bit for any pending tile loads
+    // Prepare map for capture
+    await this.prepareMapForCapture(mapContainer);
+
+    // Wait for any pending tile loads
     await this.waitForTilesToLoad(mapContainer);
+
+    // Use device pixel ratio for proper scaling
+    const pixelRatio = window.devicePixelRatio || 1;
 
     // Capture with html2canvas
     const mapCanvas = await html2canvas(mapContainer, {
       useCORS: true,
       allowTaint: true,
-      scale: 2,
+      scale: pixelRatio,
       logging: false,
       backgroundColor: '#f2efe9',
+      width: mapContainer.offsetWidth,
+      height: mapContainer.offsetHeight,
+      windowWidth: mapContainer.offsetWidth,
+      windowHeight: mapContainer.offsetHeight,
       onclone: (clonedDoc) => {
         // Ensure map tiles are visible in clone
         const clonedMap = clonedDoc.getElementById('ride-map');
@@ -135,6 +155,19 @@ export class MapImageExportService {
     });
 
     await this.shareImage(blob, ride);
+  }
+
+  private async prepareMapForCapture(mapEl: HTMLElement): Promise<void> {
+    // Get the Leaflet map instance from the element
+    const leafletMap = (mapEl as any)._leaflet_map;
+    
+    if (leafletMap) {
+      // Force Leaflet to recalculate its size and invalidate
+      leafletMap.invalidateSize({ pan: false });
+      
+      // Wait for the map to finish rendering
+      await new Promise(resolve => setTimeout(resolve, 300));
+    }
   }
 
   private async waitForTilesToLoad(mapEl: HTMLElement): Promise<void> {

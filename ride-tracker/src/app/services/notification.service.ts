@@ -61,9 +61,7 @@ export class NotificationService implements OnDestroy {
     this.rideSub = this.rideService.currentRide$.subscribe(ride => {
       if (ride) {
         this.currentData.distance = ride.totalDistance;
-        this.currentData.speed = ride.points.length > 0 
-          ? (ride.points[ride.points.length - 1].speed ?? 0) 
-          : 0;
+        this.currentData.speed = ride.currentSpeed;
       }
     });
 

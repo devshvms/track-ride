@@ -46,6 +46,68 @@ export class RideUtils {
   }
 
   /**
+   * Calculates current speed like a speedometer using rolling average.
+   * Uses points from the last active minute (or last N points, whichever is smaller).
+   * This provides smooth incremental/decremental speed changes.
+   * @param points - All GPS points in the ride
+   * @param windowSeconds - Time window in seconds to consider (default: 60)
+   * @param minPoints - Minimum number of points to use (default: 3)
+   * @param maxPoints - Maximum number of points to use (default: 20)
+   * @returns current speed in m/s
+   */
+  static calculateCurrentSpeed(
+    points: GpsPoint[],
+    windowSeconds = 60,
+    minPoints = 3,
+    maxPoints = 20
+  ): number {
+    if (points.length < 2) return 0;
+
+    const now = Date.now();
+    const windowMs = windowSeconds * 1000;
+    
+    // Get points within the time window
+    const recentPoints = points.filter(p => now - p.timestamp <= windowMs);
+    
+    // Use at least minPoints, but no more than maxPoints
+    let pointsToUse: GpsPoint[];
+    if (recentPoints.length < minPoints) {
+      // If not enough recent points, use the last minPoints
+      pointsToUse = points.slice(-Math.min(minPoints, points.length));
+    } else if (recentPoints.length > maxPoints) {
+      // If too many points, use only the last maxPoints
+      pointsToUse = recentPoints.slice(-maxPoints);
+    } else {
+      pointsToUse = recentPoints;
+    }
+
+    if (pointsToUse.length < 2) return 0;
+
+    // Calculate total distance and time for these points
+    let totalDistance = 0;
+    for (let i = 1; i < pointsToUse.length; i++) {
+      totalDistance += RideUtils.calculateDistance(pointsToUse[i - 1], pointsToUse[i]);
+    }
+
+    const timeSpan = pointsToUse[pointsToUse.length - 1].timestamp - pointsToUse[0].timestamp;
+    const durationSeconds = timeSpan / 1000;
+
+    if (durationSeconds <= 0) return 0;
+    return totalDistance / durationSeconds; // m/s
+  }
+
+  /**
+   * Updates and returns the maximum speed.
+   * Compares current speed with existing max speed.
+   * @param currentMaxSpeed - Current maximum speed in m/s
+   * @param newSpeed - New speed value to compare in m/s
+   * @returns updated max speed in m/s
+   */
+  static updateMaxSpeed(currentMaxSpeed: number, newSpeed: number): number {
+    return Math.max(currentMaxSpeed, newSpeed);
+  }
+
+  /**
    * Formats a duration in milliseconds into a human-readable string.
    */
   static formatDuration(ms: number): string {

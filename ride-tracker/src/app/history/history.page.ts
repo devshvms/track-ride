@@ -11,6 +11,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DurationPipe, DistancePipe, SpeedPipe } from '../pipes/duration.pipe';
 import { RideUtils } from '../utils/ride-calculations';
+import { environment } from '../../environments/environment';
 
 @Component({
   selector: 'app-history',
@@ -137,6 +138,6 @@ export class HistoryPage implements OnInit {
   }
 
   getStaticMapThumb(ride: Ride): string {
-    return RideUtils.getStaticMapUrl(ride.points, 'YOUR_GOOGLE_MAPS_API_KEY', '200x120');
+    return RideUtils.getStaticMapUrl(ride.points, environment.googleMapsApiKey, '200x120');
   }
 }

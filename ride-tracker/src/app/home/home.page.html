@@ -1,11 +1,12 @@
 <!-- src/app/home/home.page.html -->
+<ng-container *ngIf="{ state: currentState$ | async, elapsed: elapsed$ | async } as vm">
+
 <ion-header [translucent]="true">
   <ion-toolbar>
     <ion-title>Ride Tracker</ion-title>
     <ion-buttons slot="end">
-      <!-- FIX: Battery/accuracy badge reads from state, not hardcoded "High" -->
-      <ion-badge color="success" *ngIf="(currentState$ | async) !== RideState.IDLE">
-        {{ (elapsed$ | async) | apply:formatElapsed }}
+      <ion-badge color="success" *ngIf="vm.state !== RideState.IDLE">
+        {{ vm.elapsed | apply:formatElapsed }}
       </ion-badge>
     </ion-buttons>
   </ion-toolbar>
@@ -14,7 +15,7 @@
 <ion-content [fullscreen]="true">
 
   <!-- ── RIDE SUMMARY overlay (full-screen, own header/content) ── -->
-  @if ((currentState$ | async) === RideState.RIDE_SUMMARY) {
+  @if (vm.state === RideState.RIDE_SUMMARY) {
     <app-ride-summary (viewHistory)="onViewInHistory()"></app-ride-summary>
   }
 
@@ -22,7 +23,7 @@
     <div class="dashboard-container">
 
       <!-- ══ GPS SIGNAL LOST BANNER ══ -->
-      @if ((currentState$ | async) === RideState.GPS_SIGNAL_LOST) {
+      @if (vm.state === RideState.GPS_SIGNAL_LOST) {
         <div class="alert-banner danger pulse">
           <ion-icon name="warning-outline"></ion-icon>
           <span>GPS Signal Lost — searching…</span>
@@ -30,7 +31,7 @@
       }
 
       <!-- ══ AUTO-PAUSED CHIP ══ -->
-      @if ((currentState$ | async) === RideState.AUTO_PAUSED) {
+      @if (vm.state === RideState.AUTO_PAUSED) {
         <div class="alert-banner warning">
           <ion-icon name="pause-circle-outline"></ion-icon>
           <span>Auto-Paused — waiting for movement</span>
@@ -38,7 +39,7 @@
       }
 
       <!-- ══ IDLE STATE ══ -->
-      @if ((currentState$ | async) === RideState.IDLE) {
+      @if (vm.state === RideState.IDLE) {
         <div class="idle-center">
           <div class="gps-ring">
             <ion-icon name="bicycle" class="bike-icon"></ion-icon>
@@ -59,10 +60,10 @@
 
       <!-- ══ TRACKING / PAUSED / AUTO_PAUSED / GPS_SIGNAL_LOST — STATS ══ -->
       @if (
-        (currentState$ | async) === RideState.TRACKING ||
-        (currentState$ | async) === RideState.PAUSED ||
-        (currentState$ | async) === RideState.AUTO_PAUSED ||
-        (currentState$ | async) === RideState.GPS_SIGNAL_LOST
+        vm.state === RideState.TRACKING ||
+        vm.state === RideState.PAUSED ||
+        vm.state === RideState.AUTO_PAUSED ||
+        vm.state === RideState.GPS_SIGNAL_LOST
       ) {
         <ng-container *ngIf="currentRide$ | async as ride">
           <!-- Scrollable content wrapper -->
@@ -70,12 +71,12 @@
             <!-- Mini Live Map -->
             <app-live-map 
               [points]="ride.points" 
-              [isTracking]="(currentState$ | async) === RideState.TRACKING">
+              [isTracking]="vm.state === RideState.TRACKING">
             </app-live-map>
 
             <!-- Timer prominent display -->
             <div class="elapsed-display">
-              <span class="elapsed-time">{{ (elapsed$ | async) | apply:formatElapsed }}</span>
+              <span class="elapsed-time">{{ vm.elapsed | apply:formatElapsed }}</span>
               <span class="elapsed-label">elapsed</span>
             </div>
 
@@ -88,7 +89,7 @@
               </div>
               <div class="stat-card">
                 <span class="stat-value">
-                  {{ (ride.points.length > 0 ? (ride.points[ride.points.length-1].speed ?? 0) : 0) | speed }}
+                  {{ ride.currentSpeed | speed }}
                 </span>
                 <span class="stat-label">km/h</span>
                 <span class="stat-name">Speed</span>
@@ -117,7 +118,7 @@
 
             <!-- Pause reason indicator while paused -->
             @if (
-              (currentState$ | async) === RideState.PAUSED &&
+              vm.state === RideState.PAUSED &&
               ride.breaks.length > 0
             ) {
               <div class="pause-reason-chip">
@@ -130,7 +131,7 @@
       }
 
       <!-- ══ AUTO_RESUME transient state ══ -->
-      @if ((currentState$ | async) === RideState.AUTO_RESUME) {
+      @if (vm.state === RideState.AUTO_RESUME) {
         <div class="auto-resume">
           <ion-spinner name="crescent" color="success"></ion-spinner>
           <p>Resuming tracking…</p>
@@ -142,8 +143,8 @@
 
         <!-- TRACKING or GPS_SIGNAL_LOST: Pause + Stop -->
         @if (
-          (currentState$ | async) === RideState.TRACKING ||
-          (currentState$ | async) === RideState.GPS_SIGNAL_LOST
+          vm.state === RideState.TRACKING ||
+          vm.state === RideState.GPS_SIGNAL_LOST
         ) {
           <ion-button class="action-btn pause" color="warning" (click)="pauseRide()">
             <ion-icon name="pause"></ion-icon>
@@ -155,8 +156,8 @@
 
         <!-- PAUSED or AUTO_PAUSED: Resume + Stop -->
         @if (
-          (currentState$ | async) === RideState.PAUSED ||
-          (currentState$ | async) === RideState.AUTO_PAUSED
+          vm.state === RideState.PAUSED ||
+          vm.state === RideState.AUTO_PAUSED
         ) {
           <ion-button class="action-btn resume" color="success" (click)="resumeRide()">
             <ion-icon name="play"></ion-icon>
@@ -172,3 +173,5 @@
   }
 
 </ion-content>
+
+</ng-container>

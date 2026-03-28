@@ -8,6 +8,9 @@ import { GpsMonitorService } from './gps-monitor.service';
 import { LocationService } from './location.service';
 import { HistoryService } from './history.service';
 import { AutoPauseService } from './auto-pause.service';
+import { MotionDetectionService } from './motion-detection.service';
+import { ForegroundServiceService } from './foreground-service.service';
+import { BackgroundTaskService } from './background-task.service';
 import { RideUtils } from '../utils/ride-calculations';
 
 @Injectable({ providedIn: 'root' })
@@ -23,17 +26,23 @@ export class RideService {
   public elapsed$ = this.elapsedSubject.asObservable();
 
   private locationSub?: Subscription;
+  private locationErrorSub?: Subscription;
   private autoPauseSub?: Subscription;
   private gpsMonitorSub?: Subscription;
+  private motionSub?: Subscription;
   private elapsedTimer?: ReturnType<typeof setInterval>;
   private pauseStartTime?: number;
+  private motionCheckInProgress = false;
 
   constructor(
     private settings: SettingsService,
     private gpsMonitor: GpsMonitorService,
     private location: LocationService,
     private history: HistoryService,
-    private autoPause: AutoPauseService
+    private autoPause: AutoPauseService,
+    private motionDetection: MotionDetectionService,
+    private foregroundService: ForegroundServiceService,
+    private backgroundTask: BackgroundTaskService
   ) {}
 
   startRide(): void {
@@ -45,6 +54,7 @@ export class RideService {
       totalDistance: 0,
       averageSpeed: 0,
       maxSpeed: 0,
+      currentSpeed: 0,
       totalPausedTime: 0
     };
     this.currentRideSubject.next(newRide);
@@ -55,6 +65,9 @@ export class RideService {
     this.initTrackingSubscriptions();
     this.startElapsedTimer();
     this.gpsMonitor.resetStatus();
+    
+    // Start foreground service for background GPS tracking
+    this.foregroundService.startForegroundService(0, 0, 0);
   }
 
   private startElapsedTimer(): void {
@@ -63,6 +76,16 @@ export class RideService {
       const state = this.stateSubject.value;
       if (state === RideState.TRACKING || state === RideState.GPS_SIGNAL_LOST) {
         this.elapsedSubject.next(this.elapsedSubject.value + 1);
+        
+        // Update foreground service notification
+        const ride = this.currentRideSubject.value;
+        if (ride) {
+          this.foregroundService.updateForegroundService(
+            ride.totalDistance,
+            this.elapsedSubject.value,
+            ride.currentSpeed
+          );
+        }
       }
     }, 1000);
   }
@@ -83,7 +106,7 @@ export class RideService {
       }
     });
     // Handle location errors gracefully
-    this.location.error$.subscribe(err => {
+    this.locationErrorSub = this.location.error$.subscribe(err => {
       console.warn('GPS Error:', err.code, err.message || 'Location unavailable');
       // Trigger GPS signal lost state for tracking
       if (this.stateSubject.value === RideState.TRACKING) {
@@ -107,6 +130,12 @@ export class RideService {
         if (state === RideState.AUTO_PAUSED) {
           this.resumeRide(true);
         }
+      }
+    });
+
+    this.motionSub = this.motionDetection.motion$.subscribe(event => {
+      if (event.significantMovement && this.stateSubject.value === RideState.AUTO_PAUSED) {
+        this.handleMotionDetected();
       }
     });
   }
@@ -136,9 +165,14 @@ export class RideService {
     }
 
     const totalDistance = ride.totalDistance + addedDistance;
-    // FIX: maxSpeed stored in m/s (raw from GPS) — consistent with averageSpeed fix
-    const maxSpeed = Math.max(ride.maxSpeed, newPoint.speed ?? 0);
-    // FIX: calculateAverageSpeed now returns m/s
+    
+    // Calculate current speed using rolling average (speedometer-like)
+    const currentSpeed = RideUtils.calculateCurrentSpeed(updatedPoints);
+    
+    // Update max speed based on current speed (not raw GPS speed)
+    const maxSpeed = RideUtils.updateMaxSpeed(ride.maxSpeed, currentSpeed);
+    
+    // Calculate average speed over entire active ride duration
     const averageSpeed = RideUtils.calculateAverageSpeed(
       totalDistance,
       ride.startTime,
@@ -151,6 +185,7 @@ export class RideService {
       points: updatedPoints,
       totalDistance,
       maxSpeed,
+      currentSpeed,
       averageSpeed
     });
   }
@@ -165,6 +200,11 @@ export class RideService {
         location: ride.points[ride.points.length - 1]
       };
       this.currentRideSubject.next({ ...ride, breaks: [...ride.breaks, newBreak] });
+      
+      if (reason.startsWith('auto:') && ride.points.length > 0) {
+        const lastPoint = ride.points[ride.points.length - 1];
+        this.motionDetection.startMonitoring(lastPoint);
+      }
     }
     const newState = reason.startsWith('auto:') ? RideState.AUTO_PAUSED : RideState.PAUSED;
     this.stateSubject.next(newState);
@@ -184,6 +224,7 @@ export class RideService {
       }
     }
     this.pauseStartTime = undefined;
+    this.motionDetection.stopMonitoring();
 
     if (isAuto) {
       this.stateSubject.next(RideState.AUTO_RESUME);
@@ -221,12 +262,57 @@ export class RideService {
     this.stateSubject.next(RideState.IDLE);
   }
 
+  private handleMotionDetected(): void {
+    if (this.motionCheckInProgress) {
+      return;
+    }
+
+    this.motionCheckInProgress = true;
+    console.log('Motion detected during pause, checking GPS location...');
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const currentLocation: GpsPoint = {
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          altitude: position.coords.altitude ?? undefined,
+          accuracy: position.coords.accuracy,
+          speed: position.coords.speed ?? 0,
+          timestamp: position.timestamp
+        };
+
+        if (this.motionDetection.shouldResumeBasedOnDistance(currentLocation)) {
+          console.log('Distance threshold exceeded (>50m), auto-resuming ride');
+          this.resumeRide(true);
+        } else {
+          console.log('Distance below threshold, continuing to monitor motion');
+        }
+        this.motionCheckInProgress = false;
+      },
+      (error) => {
+        console.warn('GPS check failed during motion detection:', error);
+        this.motionCheckInProgress = false;
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0
+      }
+    );
+  }
+
   private cleanupTracking(): void {
     this.location.stopTracking();
     this.autoPause.stopListening();
+    this.motionDetection.stopMonitoring();
     this.stopElapsedTimer();
     this.locationSub?.unsubscribe();
+    this.locationErrorSub?.unsubscribe();
     this.autoPauseSub?.unsubscribe();
     this.gpsMonitorSub?.unsubscribe();
+    this.motionSub?.unsubscribe();
+    
+    // Stop foreground service
+    this.foregroundService.stopForegroundService();
   }
 }

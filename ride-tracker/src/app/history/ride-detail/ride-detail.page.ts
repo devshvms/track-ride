@@ -1,5 +1,5 @@
 // src/app/history/ride-detail/ride-detail.page.ts
-import { Component, OnInit, AfterViewInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, AfterViewInit, OnDestroy, ViewChild, ElementRef } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { IonicModule, AlertController } from '@ionic/angular';
 import { CommonModule } from '@angular/common';
@@ -23,6 +23,7 @@ import * as L from 'leaflet';
   imports: [IonicModule, CommonModule, SpeedPipe, DistancePipe, DurationPipe, SpeedGraphComponent]
 })
 export class RideDetailPage implements OnInit, AfterViewInit, OnDestroy {
+  @ViewChild('rideMapEl') mapElementRef!: ElementRef<HTMLDivElement>;
   ride: Ride | null = null;
   private map: L.Map | null = null;
   units$: Observable<'km' | 'miles'>;
@@ -63,7 +64,7 @@ export class RideDetailPage implements OnInit, AfterViewInit, OnDestroy {
   private initMap(): void {
     if (!this.ride || this.ride.points.length === 0) return;
 
-    const mapElement = document.getElementById('ride-map');
+    const mapElement = this.mapElementRef?.nativeElement;
     if (!mapElement) return;
 
     // Calculate bounds from points
@@ -71,9 +72,10 @@ export class RideDetailPage implements OnInit, AfterViewInit, OnDestroy {
     const latlngs: L.LatLngExpression[] = points.map(p => [p.latitude, p.longitude]);
 
     // Initialize map
-    this.map = L.map('ride-map', {
+    this.map = L.map(mapElement, {
       zoomControl: true,
-      attributionControl: true
+      attributionControl: true,
+      preferCanvas: false
     });
 
     // Add OpenStreetMap tiles
@@ -176,10 +178,12 @@ export class RideDetailPage implements OnInit, AfterViewInit, OnDestroy {
   async shareAsImage(): Promise<void> {
     if (!this.ride) return;
     try {
-      // Get the map container element for snapshot
-      const mapContainer = document.querySelector('.map-container') as HTMLElement;
-      if (mapContainer) {
-        await this.mapImageExport.captureMapSnapshot(mapContainer, this.ride);
+      // Get the actual Leaflet map element (not the wrapper)
+      const mapElement = this.mapElementRef?.nativeElement;
+      if (mapElement && this.map) {
+        // Store reference to map instance on the element for the export service
+        (mapElement as any)._leaflet_map = this.map;
+        await this.mapImageExport.captureMapSnapshot(mapElement, this.ride);
       } else {
         await this.mapImageExport.exportRideAsImage(this.ride);
       }

@@ -9,15 +9,27 @@ export class HistoryService {
   public rides$ = this.ridesSubject.asObservable();
 
   private loadHistory(): Ride[] {
-    const stored = localStorage.getItem(this.HISTORY_KEY);
-    return stored ? JSON.parse(stored) : [];
+    try {
+      const stored = localStorage.getItem(this.HISTORY_KEY);
+      if (!stored) return [];
+      
+      const rides: Ride[] = JSON.parse(stored);
+      // Migration: Add currentSpeed field to older rides that don't have it
+      return rides.map(ride => ({
+        ...ride,
+        currentSpeed: ride.currentSpeed ?? 0
+      }));
+    } catch (err) {
+      console.error('Failed to load ride history from localStorage:', err);
+      return [];
+    }
   }
 
   saveRide(ride: Ride): void {
     const currentRides = this.ridesSubject.value;
     const updatedRides = [ride, ...currentRides]; // Newest first
     this.ridesSubject.next(updatedRides);
-    localStorage.setItem(this.HISTORY_KEY, JSON.stringify(updatedRides));
+    this.persistRides(updatedRides);
   }
 
   getRideById(id: string): Ride | undefined {
@@ -27,11 +39,19 @@ export class HistoryService {
   deleteRide(id: string): void {
     const updated = this.ridesSubject.value.filter(r => r.id !== id);
     this.ridesSubject.next(updated);
-    localStorage.setItem(this.HISTORY_KEY, JSON.stringify(updated));
+    this.persistRides(updated);
   }
 
   replaceAllRides(rides: Ride[]): void {
     this.ridesSubject.next(rides);
-    localStorage.setItem(this.HISTORY_KEY, JSON.stringify(rides));
+    this.persistRides(rides);
+  }
+
+  private persistRides(rides: Ride[]): void {
+    try {
+      localStorage.setItem(this.HISTORY_KEY, JSON.stringify(rides));
+    } catch (err) {
+      console.error('Failed to save ride history to localStorage (storage may be full):', err);
+    }
   }
 }

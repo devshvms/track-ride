@@ -26,6 +26,7 @@ export interface Ride {
   totalDistance: number;   // meters
   averageSpeed: number;    // m/s  ← FIXED: was km/h, now consistent with maxSpeed
   maxSpeed: number;        // m/s
+  currentSpeed: number;    // m/s - rolling average for speedometer display
   totalPausedTime?: number; // ms (sum of all break durations)
 }
 

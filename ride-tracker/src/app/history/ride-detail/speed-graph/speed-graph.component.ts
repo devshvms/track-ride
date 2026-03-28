@@ -105,43 +105,45 @@ export class SpeedGraphComponent implements AfterViewInit, OnDestroy {
     const ctx = this.chartCanvas.nativeElement.getContext('2d');
     if (!ctx) return;
 
-    // Prepare data - convert m/s to km/h or mph
-    const conversionFactor = this.units === 'miles' ? 2.237 : 3.6;
-    const startTime = this.points[0].timestamp;
-    
-    const labels = this.points.map(p => {
-      const elapsed = (p.timestamp - startTime) / 1000 / 60; // minutes
-      return elapsed.toFixed(1);
-    });
+    // Prepare uniform time series data
+    const { labels, speedData, pauseData, maxSpeed } = this.prepareUniformTimeSeriesData();
 
-    const speedData = this.points.map(p => {
-      const speed = (p.speed ?? 0) * conversionFactor;
-      return Math.round(speed * 10) / 10;
-    });
+    // Create datasets - one for active riding, one for paused periods
+    const datasets: any[] = [
+      {
+        label: 'Speed',
+        data: speedData,
+        borderColor: '#3880ff',
+        backgroundColor: 'rgba(56, 128, 255, 0.1)',
+        fill: true,
+        tension: 0.3,
+        pointRadius: 0,
+        pointHitRadius: 10,
+        borderWidth: 2,
+        spanGaps: false
+      }
+    ];
 
-    // Calculate max for y-axis
-    const maxSpeed = Math.max(...speedData);
-
-    // Create pause interval annotations
-    const pauseAnnotations = this.createPauseAnnotations(startTime);
+    // Add pause dataset if there are pauses
+    if (pauseData.some(d => d !== null)) {
+      datasets.push({
+        label: 'Paused',
+        data: pauseData,
+        borderColor: 'rgba(255, 196, 9, 0.6)',
+        backgroundColor: 'rgba(255, 196, 9, 0.3)',
+        fill: true,
+        tension: 0,
+        pointRadius: 0,
+        borderWidth: 2,
+        spanGaps: false
+      });
+    }
 
     const config: ChartConfiguration = {
       type: 'line',
       data: {
         labels,
-        datasets: [
-          {
-            label: 'Speed',
-            data: speedData,
-            borderColor: '#3880ff',
-            backgroundColor: 'rgba(56, 128, 255, 0.1)',
-            fill: true,
-            tension: 0.3,
-            pointRadius: 0,
-            pointHitRadius: 10,
-            borderWidth: 2
-          }
-        ]
+        datasets
       },
       options: {
         responsive: true,
@@ -162,11 +164,17 @@ export class SpeedGraphComponent implements AfterViewInit, OnDestroy {
             displayColors: false,
             callbacks: {
               title: (items) => `${items[0].label} min`,
-              label: (item) => `${item.raw} ${this.units === 'miles' ? 'mph' : 'km/h'}`
-            }
+              label: (item) => {
+                if (item.dataset.label === 'Paused') {
+                  return 'Paused';
+                }
+                return `${item.raw} ${this.units === 'miles' ? 'mph' : 'km/h'}`;
+              }
+            },
+            filter: (item) => item.raw !== null
           },
           annotation: {
-            annotations: pauseAnnotations
+            annotations: {}
           }
         },
         scales: {
@@ -182,7 +190,7 @@ export class SpeedGraphComponent implements AfterViewInit, OnDestroy {
               display: false
             },
             ticks: {
-              maxTicksLimit: 6,
+              maxTicksLimit: 8,
               font: { size: 10 },
               color: '#999'
             }
@@ -190,7 +198,7 @@ export class SpeedGraphComponent implements AfterViewInit, OnDestroy {
           y: {
             display: true,
             beginAtZero: true,
-            suggestedMax: maxSpeed * 1.1,
+            suggestedMax: maxSpeed > 0 ? maxSpeed * 1.1 : 10,
             grid: {
               color: 'rgba(0,0,0,0.05)'
             },
@@ -207,28 +215,95 @@ export class SpeedGraphComponent implements AfterViewInit, OnDestroy {
     this.chart = new Chart(ctx, config);
   }
 
-  private createPauseAnnotations(startTime: number): Record<string, any> {
-    const annotations: Record<string, any> = {};
-    
-    this.breaks.forEach((brk, index) => {
+  private prepareUniformTimeSeriesData(): {
+    labels: string[];
+    speedData: (number | null)[];
+    pauseData: (number | null)[];
+    maxSpeed: number;
+  } {
+    const conversionFactor = this.units === 'miles' ? 2.237 : 3.6;
+    const startTime = this.points[0].timestamp;
+    const endTime = this.points[this.points.length - 1].timestamp;
+    const totalDurationMs = endTime - startTime;
+    const totalDurationMin = totalDurationMs / 1000 / 60;
+
+    // Determine interval based on total duration
+    // For rides < 30 min: 30 second intervals
+    // For rides 30-120 min: 1 minute intervals
+    // For rides > 120 min: 2 minute intervals
+    let intervalMs: number;
+    if (totalDurationMin < 30) {
+      intervalMs = 30 * 1000; // 30 seconds
+    } else if (totalDurationMin < 120) {
+      intervalMs = 60 * 1000; // 1 minute
+    } else {
+      intervalMs = 2 * 60 * 1000; // 2 minutes
+    }
+
+    // Create uniform time intervals
+    const labels: string[] = [];
+    const speedData: (number | null)[] = [];
+    const pauseData: (number | null)[] = [];
+    let maxSpeed = 0;
+
+    // Create a map of breaks for quick lookup
+    const breakMap = new Map<number, boolean>();
+    this.breaks.forEach(brk => {
       if (brk.endTime) {
-        const startMin = (brk.startTime - startTime) / 1000 / 60;
-        const endMin = (brk.endTime - startTime) / 1000 / 60;
-        
-        annotations[`pause${index}`] = {
-          type: 'box',
-          xMin: startMin.toFixed(1),
-          xMax: endMin.toFixed(1),
-          backgroundColor: 'rgba(255, 196, 9, 0.2)',
-          borderColor: 'rgba(255, 196, 9, 0.5)',
-          borderWidth: 1,
-          label: {
-            display: false
-          }
-        };
+        const breakStart = brk.startTime;
+        const breakEnd = brk.endTime;
+        for (let t = breakStart; t <= breakEnd; t += intervalMs) {
+          breakMap.set(Math.floor(t / intervalMs) * intervalMs, true);
+        }
       }
     });
-    
-    return annotations;
+
+    // Generate data points at uniform intervals
+    let pointIndex = 0;
+    for (let t = startTime; t <= endTime; t += intervalMs) {
+      const elapsedMin = (t - startTime) / 1000 / 60;
+      labels.push(elapsedMin.toFixed(1));
+
+      // Check if this time is during a break
+      const isDuringBreak = this.isTimeDuringBreak(t);
+
+      if (isDuringBreak) {
+        // During pause: show 0 in pause dataset
+        speedData.push(null);
+        pauseData.push(0);
+      } else {
+        // Find the closest GPS point to this time
+        while (pointIndex < this.points.length - 1 && 
+               Math.abs(this.points[pointIndex + 1].timestamp - t) < Math.abs(this.points[pointIndex].timestamp - t)) {
+          pointIndex++;
+        }
+
+        const point = this.points[pointIndex];
+        const timeDiff = Math.abs(point.timestamp - t);
+
+        // Only use the point if it's within the interval window
+        if (timeDiff <= intervalMs) {
+          const speed = (point.speed ?? 0) * conversionFactor;
+          const roundedSpeed = Math.round(speed * 10) / 10;
+          speedData.push(roundedSpeed);
+          pauseData.push(null);
+          maxSpeed = Math.max(maxSpeed, roundedSpeed);
+        } else {
+          // No data available for this interval
+          speedData.push(null);
+          pauseData.push(null);
+        }
+      }
+    }
+
+    return { labels, speedData, pauseData, maxSpeed };
   }
+
+  private isTimeDuringBreak(timestamp: number): boolean {
+    return this.breaks.some(brk => {
+      if (!brk.endTime) return false;
+      return timestamp >= brk.startTime && timestamp <= brk.endTime;
+    });
+  }
+
 }

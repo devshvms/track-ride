@@ -48,13 +48,10 @@ export class AutoPauseService {
     App.addListener('appStateChange', ({ isActive }) => {
       this.zone.run(() => {
         if (!this.isTrackingActive) return;
-        const s = this.settings.currentSettings;
-        if (s.autoPause.enabled && s.autoPause.pauseOnBackground) {
-          this.eventSubject.next({
-            pause: !isActive,
-            reason: !isActive ? 'auto:backgrounded' : undefined
-          });
-        }
+        // DISABLED: Don't pause on background to allow continuous GPS tracking
+        // The foreground service will keep GPS active in background
+        // Users can manually pause if needed
+        console.log(`App state changed: ${isActive ? 'active' : 'background'}`);
       });
     });
   }

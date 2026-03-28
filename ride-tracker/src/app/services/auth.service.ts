@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
 import { BehaviorSubject } from 'rxjs';
+import { environment } from '../../environments/environment';
 
 declare const google: any;
 
@@ -24,8 +25,7 @@ export class AuthService {
   private readonly DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
   private readonly PROFILE_SCOPE = 'https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email';
   
-  // Replace with your actual Google Cloud Console client ID
-  private readonly CLIENT_ID = 'YOUR_CLIENT_ID.apps.googleusercontent.com';
+  private readonly CLIENT_ID = environment.googleClientId;
 
   private tokenClient: any = null;
   private isGsiLoaded = false;

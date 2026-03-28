@@ -38,6 +38,7 @@ export class PauseModalComponent {
     { label: 'Short Break', value: 'break' },
     { label: 'Food/Refreshment', value: 'refreshment' },
     { label: 'Traffic/Wait', value: 'traffic' },
+    { label: 'Fuel Stop', value: 'fuel' },
     { label: 'Photo Stop', value: 'photo' },
     { label: 'Other', value: 'other' }
   ];
