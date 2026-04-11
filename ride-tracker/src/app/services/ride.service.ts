@@ -25,12 +25,17 @@ export class RideService {
   private elapsedSubject = new BehaviorSubject<number>(0);
   public elapsed$ = this.elapsedSubject.asObservable();
 
+  /** Emits total time in seconds since ride started (includes pauses). */
+  private totalTimeSubject = new BehaviorSubject<number>(0);
+  public totalTime$ = this.totalTimeSubject.asObservable();
+
   private locationSub?: Subscription;
   private locationErrorSub?: Subscription;
   private autoPauseSub?: Subscription;
   private gpsMonitorSub?: Subscription;
   private motionSub?: Subscription;
   private elapsedTimer?: ReturnType<typeof setInterval>;
+  private totalTimeTimer?: ReturnType<typeof setInterval>;
   private pauseStartTime?: number;
   private motionCheckInProgress = false;
 
@@ -59,11 +64,13 @@ export class RideService {
     };
     this.currentRideSubject.next(newRide);
     this.elapsedSubject.next(0);
+    this.totalTimeSubject.next(0);
     this.stateSubject.next(RideState.TRACKING);
     this.autoPause.startListening();
     this.startLocationProcessing();
     this.initTrackingSubscriptions();
     this.startElapsedTimer();
+    this.startTotalTimeTimer();
     this.gpsMonitor.resetStatus();
     
     // Start foreground service for background GPS tracking
@@ -94,6 +101,24 @@ export class RideService {
     if (this.elapsedTimer) {
       clearInterval(this.elapsedTimer);
       this.elapsedTimer = undefined;
+    }
+  }
+
+  private startTotalTimeTimer(): void {
+    this.stopTotalTimeTimer();
+    this.totalTimeTimer = setInterval(() => {
+      const state = this.stateSubject.value;
+      // Count total time in all states except IDLE and RIDE_SUMMARY
+      if (state !== RideState.IDLE && state !== RideState.RIDE_SUMMARY) {
+        this.totalTimeSubject.next(this.totalTimeSubject.value + 1);
+      }
+    }, 1000);
+  }
+
+  private stopTotalTimeTimer(): void {
+    if (this.totalTimeTimer) {
+      clearInterval(this.totalTimeTimer);
+      this.totalTimeTimer = undefined;
     }
   }
 
@@ -259,6 +284,7 @@ export class RideService {
   finishSummary(): void {
     this.currentRideSubject.next(null);
     this.elapsedSubject.next(0);
+    this.totalTimeSubject.next(0);
     this.stateSubject.next(RideState.IDLE);
   }
 
@@ -306,6 +332,7 @@ export class RideService {
     this.autoPause.stopListening();
     this.motionDetection.stopMonitoring();
     this.stopElapsedTimer();
+    this.stopTotalTimeTimer();
     this.locationSub?.unsubscribe();
     this.locationErrorSub?.unsubscribe();
     this.autoPauseSub?.unsubscribe();

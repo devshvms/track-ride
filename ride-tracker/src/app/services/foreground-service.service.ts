@@ -7,6 +7,7 @@ import { Capacitor } from '@capacitor/core';
 export class ForegroundServiceService {
   private notificationId = 1000;
   private isServiceActive = false;
+  private lastNotificationBody: string | null = null;
 
   async startForegroundService(
     distance: number = 0,
@@ -64,7 +65,7 @@ export class ForegroundServiceService {
           id: 'ride-tracking',
           name: 'Ride Tracking',
           description: 'Shows ongoing ride tracking information',
-          importance: 3, // Default importance
+          importance: 2, // LOW - silent, no sound or vibration
           visibility: 1, // Public
           sound: undefined,
           vibration: false
@@ -84,13 +85,22 @@ export class ForegroundServiceService {
       return;
     }
 
+    const body = this.formatNotificationBody(distance, duration, speed);
+    
+    // Only update if content has changed to prevent notification sounds
+    if (this.lastNotificationBody === body) {
+      return;
+    }
+    
+    this.lastNotificationBody = body;
+
     try {
       await LocalNotifications.schedule({
         notifications: [
           {
             id: this.notificationId,
             title: 'Ride Tracker Active',
-            body: this.formatNotificationBody(distance, duration, speed),
+            body,
             ongoing: true,
             autoCancel: false,
             silent: true,
@@ -116,6 +126,7 @@ export class ForegroundServiceService {
         notifications: [{ id: this.notificationId }]
       });
       this.isServiceActive = false;
+      this.lastNotificationBody = null;
     } catch (error) {
       console.error('Failed to stop foreground service:', error);
     }

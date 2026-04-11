@@ -9,7 +9,8 @@ export class SettingsService {
 
   private defaultSettings: AppSettings = {
     gpsAccuracy: 'high',
-    readingInterval: 5, // seconds
+    trackingMode: 'normal',       // normal mode by default
+    readingInterval: 30,          // 30s default for normal mode
     autoPause: {
       enabled: true,
       stationaryThreshold: 30,    // seconds

@@ -1,13 +1,11 @@
 // src/app/services/location.service.ts
 import { Injectable } from '@angular/core';
 import { Subject, Subscription } from 'rxjs';
-import { GpsPoint } from '../models/ride.model';
+import { GpsPoint, IntervalPreset } from '../models/ride.model';
 import { SettingsService } from './settings.service';
-import { BatteryOptimizerService } from './battery-optimizer.service';
 
 @Injectable({ providedIn: 'root' })
 export class LocationService {
-  private watchId: number | null = null;
   private intervalId: ReturnType<typeof setInterval> | null = null;
 
   private locationSubject = new Subject<GpsPoint>();
@@ -16,19 +14,17 @@ export class LocationService {
   private errorSubject = new Subject<GeolocationPositionError>();
   public error$ = this.errorSubject.asObservable();
 
-  private optimizerSub: Subscription | null = null;
-  private currentInterval: number = 5;
+  private settingsSub: Subscription | null = null;
+  private currentInterval: IntervalPreset = 30;
   private currentAccuracy: 'high' | 'balanced' | 'low' = 'high';
-  private lastEmitTime: number = 0;
+  private isTracking = false;
 
-  constructor(
-    private settings: SettingsService,
-    private batteryOptimizer: BatteryOptimizerService
-  ) {}
+  constructor(private settings: SettingsService) {}
 
   /**
-   * Starts GPS tracking with battery optimization.
-   * Uses adaptive intervals based on battery level and movement state.
+   * Starts GPS tracking with explicit intervals.
+   * Uses setInterval() with getCurrentPosition() for reliable, predictable location updates.
+   * Interval presets: 10s, 30s, 1min, 5min based on tracking mode.
    */
   startTracking(): void {
     if (!navigator.geolocation) {
@@ -36,15 +32,20 @@ export class LocationService {
       return;
     }
 
-    this.batteryOptimizer.reset();
+    if (this.isTracking) {
+      console.warn('Tracking already active');
+      return;
+    }
+
+    this.isTracking = true;
     
-    // Subscribe to optimization changes for adaptive tracking
-    this.optimizerSub = this.batteryOptimizer.optimizationState$.subscribe(state => {
-      // Only restart if settings changed significantly
-      if (state.currentInterval !== this.currentInterval || 
-          state.currentAccuracy !== this.currentAccuracy) {
-        this.currentInterval = state.currentInterval;
-        this.currentAccuracy = state.currentAccuracy;
+    this.settingsSub = this.settings.settings$.subscribe(settings => {
+      const newInterval = this.getIntervalForMode(settings.trackingMode, settings.readingInterval);
+      const newAccuracy = settings.gpsAccuracy;
+      
+      if (newInterval !== this.currentInterval || newAccuracy !== this.currentAccuracy) {
+        this.currentInterval = newInterval;
+        this.currentAccuracy = newAccuracy;
         this.restartWithNewSettings();
       }
     });
@@ -52,82 +53,94 @@ export class LocationService {
     this.startWithCurrentSettings();
   }
 
+  /**
+   * Determines the GPS interval based on tracking mode.
+   * Normal mode: 30s default (high accuracy)
+   * Battery Saver mode: 60s default (high accuracy)
+   */
+  private getIntervalForMode(mode: 'normal' | 'battery_saver', userInterval: IntervalPreset): IntervalPreset {
+    if (mode === 'battery_saver') {
+      return 60; // 1 min for battery saver
+    }
+    return userInterval; // Use user's selected interval for normal mode
+  }
+
   private startWithCurrentSettings(): void {
-    const optimized = this.batteryOptimizer.getOptimizedSettings();
-    this.currentInterval = optimized.interval;
-    this.currentAccuracy = optimized.accuracy;
+    const userSettings = this.settings.currentSettings;
+    this.currentInterval = this.getIntervalForMode(userSettings.trackingMode, userSettings.readingInterval);
+    this.currentAccuracy = userSettings.gpsAccuracy;
     
     const highAccuracy = this.currentAccuracy === 'high';
     const options: PositionOptions = {
       enableHighAccuracy: highAccuracy,
-      timeout: 15000, // Increased timeout for better reliability
-      maximumAge: 0 // Always get fresh location for tracking accuracy
+      timeout: 15000,
+      maximumAge: 0 // Always get fresh location
     };
 
-    // Always use watchPosition for continuous tracking
-    // This ensures GPS stays active even when app is backgrounded
-    this.watchId = navigator.geolocation.watchPosition(
+    // Get initial position immediately
+    this.requestPosition(options);
+
+    // Set up interval-based polling with getCurrentPosition()
+    // This provides predictable, explicit intervals for smooth tracking
+    const intervalMs = this.currentInterval * 1000;
+    this.intervalId = setInterval(() => {
+      this.requestPosition(options);
+    }, intervalMs);
+    
+    console.log(`GPS tracking started with ${this.currentInterval}s interval (${userSettings.trackingMode} mode)`);
+  }
+
+  /**
+   * Requests a single GPS position using getCurrentPosition().
+   * This is called on interval for predictable location updates.
+   */
+  private requestPosition(options: PositionOptions): void {
+    navigator.geolocation.getCurrentPosition(
       pos => this.handlePosition(pos),
       err => this.handleError(err),
       options
     );
-    
-    console.log('GPS tracking started with watchPosition');
   }
 
   private handleError(err: GeolocationPositionError): void {
     console.warn('GPS Error:', err.code, err.message);
     this.errorSubject.next(err);
     
-    // Don't stop tracking on errors - let GPS monitor handle recovery
-    // The watchPosition will continue trying to get location
+    // Don't stop tracking on errors - interval will retry on next tick
   }
 
   private handlePosition(pos: GeolocationPosition): void {
-    const now = Date.now();
-    const intervalMs = this.currentInterval * 1000;
-    
-    // Throttle emissions based on the configured reading interval
-    if (now - this.lastEmitTime < intervalMs) {
-      return;
-    }
-    
-    this.lastEmitTime = now;
     const point = this.toGpsPoint(pos);
     this.locationSubject.next(point);
-    // Update battery optimizer with current speed
-    this.batteryOptimizer.updateMovementState(point.speed ?? 0);
   }
 
   private restartWithNewSettings(): void {
-    console.log('Restarting GPS with new settings');
-    // Clear existing tracking
-    if (this.watchId !== null) {
-      navigator.geolocation.clearWatch(this.watchId);
-      this.watchId = null;
-    }
+    if (!this.isTracking) return;
+    
+    console.log(`Restarting GPS with new settings: ${this.currentInterval}s interval, ${this.currentAccuracy} accuracy`);
+    
     if (this.intervalId !== null) {
       clearInterval(this.intervalId);
       this.intervalId = null;
     }
-    // Restart with new settings
+    
     this.startWithCurrentSettings();
   }
 
   stopTracking(): void {
-    if (this.watchId !== null) {
-      navigator.geolocation.clearWatch(this.watchId);
-      this.watchId = null;
-    }
+    this.isTracking = false;
+    
     if (this.intervalId !== null) {
       clearInterval(this.intervalId);
       this.intervalId = null;
     }
-    if (this.optimizerSub) {
-      this.optimizerSub.unsubscribe();
-      this.optimizerSub = null;
+    
+    if (this.settingsSub) {
+      this.settingsSub.unsubscribe();
+      this.settingsSub = null;
     }
-    this.batteryOptimizer.reset();
+    
+    console.log('GPS tracking stopped');
   }
 
   private toGpsPoint(pos: GeolocationPosition): GpsPoint {

@@ -32,8 +32,11 @@ export class NotificationService implements OnDestroy {
     state: RideState.IDLE
   };
 
+  private lastNotificationContent: { title: string; body: string; actionTypeId: string } | null = null;
+
   constructor(private rideService: RideService) {
     this.initStateListener();
+    this.initNotificationActionListener();
   }
 
   ngOnDestroy(): void {
@@ -41,6 +44,27 @@ export class NotificationService implements OnDestroy {
     this.stateSub?.unsubscribe();
     this.rideSub?.unsubscribe();
     this.elapsedSub?.unsubscribe();
+    LocalNotifications.removeAllListeners();
+  }
+
+  private initNotificationActionListener(): void {
+    if (!Capacitor.isNativePlatform()) return;
+
+    LocalNotifications.addListener('localNotificationActionPerformed', (notification) => {
+      const actionId = notification.actionId;
+      
+      switch (actionId) {
+        case 'pause':
+          this.rideService.pauseRide();
+          break;
+        case 'resume':
+          this.rideService.resumeRide();
+          break;
+        case 'stop':
+          this.rideService.stopAndSaveRide();
+          break;
+      }
+    });
   }
 
   private initStateListener(): void {
@@ -84,6 +108,7 @@ export class NotificationService implements OnDestroy {
 
   private stopTrackingNotification(): void {
     this.isTracking = false;
+    this.lastNotificationContent = null;
     
     if (this.updateInterval) {
       clearInterval(this.updateInterval);
@@ -109,6 +134,7 @@ export class NotificationService implements OnDestroy {
       default:
         this.currentData.warning = undefined;
     }
+    this.showNotification();
   }
 
   private async showNotification(): Promise<void> {
@@ -131,6 +157,21 @@ export class NotificationService implements OnDestroy {
       body = `⏱ ${elapsedStr} | 📏 ${distanceKm} km | Tap to resume`;
     }
 
+    // Determine which action buttons to show based on state
+    const actionTypeId = (state === RideState.PAUSED || state === RideState.AUTO_PAUSED) 
+      ? 'RIDE_ACTIONS_PAUSED' 
+      : 'RIDE_ACTIONS_TRACKING';
+
+    // Only update if content has changed
+    if (this.lastNotificationContent && 
+        this.lastNotificationContent.title === title && 
+        this.lastNotificationContent.body === body &&
+        this.lastNotificationContent.actionTypeId === actionTypeId) {
+      return;
+    }
+
+    this.lastNotificationContent = { title, body, actionTypeId };
+
     const options: ScheduleOptions = {
       notifications: [{
         id: TRACKING_NOTIFICATION_ID,
@@ -141,10 +182,17 @@ export class NotificationService implements OnDestroy {
         smallIcon: 'ic_stat_icon',
         largeIcon: 'ic_launcher',
         channelId: 'ride_tracking',
-        actionTypeId: 'RIDE_ACTIONS',
+        actionTypeId,
         extra: {
           state: state.toString()
-        }
+        },
+        // Lockscreen visibility settings
+        silent: true,
+        // Android specific - show on lockscreen with actions
+        ...(Capacitor.getPlatform() === 'android' && {
+          visibility: 1, // PUBLIC - visible on lockscreen
+          priority: 1 // HIGH priority
+        })
       }]
     };
 
@@ -166,31 +214,43 @@ export class NotificationService implements OnDestroy {
         id: 'ride_tracking',
         name: 'Ride Tracking',
         description: 'Shows ride tracking status and controls',
-        importance: 4, // HIGH
-        visibility: 1, // PUBLIC
+        importance: 4, // HIGH - ensures visibility on lockscreen
+        visibility: 1, // PUBLIC - shows full content on lockscreen
         vibration: false,
-        sound: undefined
+        sound: undefined,
+        lights: false
       });
 
       // Register action types for notification buttons
       await LocalNotifications.registerActionTypes({
-        types: [{
-          id: 'RIDE_ACTIONS',
-          actions: [
-            {
-              id: 'pause',
-              title: 'Pause'
-            },
-            {
-              id: 'resume', 
-              title: 'Resume'
-            },
-            {
-              id: 'stop',
-              title: 'Stop'
-            }
-          ]
-        }]
+        types: [
+          {
+            id: 'RIDE_ACTIONS_TRACKING',
+            actions: [
+              {
+                id: 'pause',
+                title: '⏸ Pause'
+              },
+              {
+                id: 'stop',
+                title: '⏹ Stop'
+              }
+            ]
+          },
+          {
+            id: 'RIDE_ACTIONS_PAUSED',
+            actions: [
+              {
+                id: 'resume',
+                title: '▶ Resume'
+              },
+              {
+                id: 'stop',
+                title: '⏹ Stop'
+              }
+            ]
+          }
+        ]
       });
     } catch (error) {
       console.error('Error creating notification channel:', error);

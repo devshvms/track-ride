@@ -2,6 +2,7 @@
 import { Injectable } from '@angular/core';
 import { BehaviorSubject } from 'rxjs';
 import { SettingsService } from './settings.service';
+import { IntervalPreset } from '../models/ride.model';
 
 export interface BatteryState {
   level: number;
@@ -10,7 +11,7 @@ export interface BatteryState {
 }
 
 export interface OptimizationState {
-  currentInterval: number;
+  currentInterval: IntervalPreset;
   currentAccuracy: 'high' | 'balanced' | 'low';
   reason: string;
 }
@@ -25,7 +26,7 @@ export class BatteryOptimizerService {
   public batteryState$ = this.batteryState.asObservable();
 
   private optimizationState = new BehaviorSubject<OptimizationState>({
-    currentInterval: 5,
+    currentInterval: 30,
     currentAccuracy: 'high',
     reason: 'Default settings'
   });
@@ -79,37 +80,37 @@ export class BatteryOptimizerService {
     const battery = this.batteryState.value;
     const userSettings = this.settings.currentSettings;
     
-    let interval = userSettings.readingInterval;
+    let interval: IntervalPreset = userSettings.readingInterval;
     let accuracy = userSettings.gpsAccuracy;
     let reason = 'User settings';
 
-    // Battery-based adjustments
+    // Battery-based adjustments - use preset intervals
     if (!battery.isCharging) {
       if (battery.level < 15) {
-        // Critical battery - maximum power saving
-        interval = Math.max(interval, 30);
+        // Critical battery - maximum power saving (5 min)
+        interval = 300;
         accuracy = 'low';
         reason = 'Critical battery (<15%)';
       } else if (battery.level < 30) {
-        // Low battery - moderate power saving
-        interval = Math.max(interval, 10);
+        // Low battery - moderate power saving (1 min)
+        interval = this.selectClosestInterval(interval, 60);
         if (accuracy === 'high') accuracy = 'balanced';
         reason = 'Low battery (<30%)';
       }
     }
 
-    // Movement-based adjustments (only reduce accuracy when stationary)
+    // Movement-based adjustments
     if (this.consecutiveStationaryCount > 5) {
-      // Been stationary for a while - reduce polling
-      interval = Math.max(interval, 10);
+      // Been stationary for a while - reduce polling to 1 min
+      interval = this.selectClosestInterval(interval, 60);
       reason = `${reason} + Stationary`;
     }
 
-    // High speed - ensure we have good accuracy
+    // High speed - ensure we have good accuracy and frequent updates
     if (this.lastSpeed > 10) { // > 36 km/h
       if (battery.level > 30 || battery.isCharging) {
-        interval = Math.min(interval, 5);
-        accuracy = userSettings.gpsAccuracy; // Respect user's accuracy preference
+        interval = this.selectClosestInterval(interval, 30);
+        accuracy = userSettings.gpsAccuracy;
         reason = 'High speed detected';
       }
     }
@@ -121,7 +122,17 @@ export class BatteryOptimizerService {
     });
   }
 
-  getOptimizedSettings(): { interval: number; accuracy: 'high' | 'balanced' | 'low' } {
+  /**
+   * Selects the closest valid interval preset.
+   * Valid presets: 10, 30, 60, 300 seconds
+   */
+  private selectClosestInterval(current: IntervalPreset, target: number): IntervalPreset {
+    const presets: IntervalPreset[] = [10, 30, 60, 300];
+    const validTarget = presets.find(p => p >= target) || 300;
+    return Math.max(current, validTarget) as IntervalPreset;
+  }
+
+  getOptimizedSettings(): { interval: IntervalPreset; accuracy: 'high' | 'balanced' | 'low' } {
     const state = this.optimizationState.value;
     return {
       interval: state.currentInterval,

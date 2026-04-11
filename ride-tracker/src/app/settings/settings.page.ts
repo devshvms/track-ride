@@ -1,7 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { SettingsService } from '../services/settings.service';
 import { AuthService } from '../services/auth.service';
-import { AppSettings } from '../models/ride.model';
+import { AppSettings, IntervalPreset } from '../models/ride.model';
 import { Observable } from 'rxjs';
 import { IonicModule } from '@ionic/angular';
 import { CommonModule } from '@angular/common';
@@ -52,8 +52,11 @@ export class SettingsPage implements OnInit {
   }
 
   onReadingIntervalChange(event: any) {
-    const value = Number(event.detail.value);
-    this.settingsService.updateSettings({ readingInterval: value });
+    const value = Number(event.detail.value) as IntervalPreset;
+    // Validate it's a valid preset
+    if ([10, 30, 60, 300].includes(value)) {
+      this.settingsService.updateSettings({ readingInterval: value });
+    }
   }
 
   onAutoPauseChange(key: 'stationaryThreshold' | 'minSpeedThreshold', event: any) {

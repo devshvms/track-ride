@@ -3,6 +3,8 @@
 ## Overview
 Implemented accelerometer-based motion detection to enable auto-resume when the ride is paused and the user starts moving again, even when the app is in the background.
 
+**Note:** This works in conjunction with the new explicit interval GPS tracking system and Android foreground service for optimal background performance.
+
 ## How It Works
 
 ### 1. **Motion Detection Service** (`motion-detection.service.ts`)
@@ -34,6 +36,7 @@ If Distance < 50m → Continue Monitoring
 - ✅ **iOS Permission**: One-time permission request on iOS (required by Apple)
 - ✅ **Distance Verification**: Prevents false positives by requiring 50m movement
 - ✅ **Cooldown Protection**: 5-second cooldown between GPS checks
+- ✅ **Foreground Service**: Android foreground service keeps tracking active in background
 
 ## Technical Details
 
@@ -98,9 +101,36 @@ The following parameters can be adjusted in `motion-detection.service.ts`:
 | False Positives | More (GPS drift) | Fewer (distance verification) |
 | Latency | Slow (polling interval) | Fast (immediate detection) |
 
+## GPS Tracking Integration
+
+### New Explicit Interval System
+The motion detection now works with an improved GPS tracking system:
+
+**Tracking Modes:**
+- **Normal Mode**: User-selectable intervals (10s, 30s, 1min, 5min) - Default: 30s
+- **Battery Saver Mode**: Fixed 1-minute interval with high accuracy
+
+**Implementation:**
+- Uses `setInterval()` + `getCurrentPosition()` instead of `watchPosition()`
+- Provides predictable, explicit GPS updates for smooth route tracking
+- Android foreground service ensures background tracking continues
+
+**Platform Support:**
+- ✅ **Android**: Full background support with foreground service
+- ✅ **Browser**: Works in foreground (background limited by browser)
+- ⚠️ **iOS**: Requires background location capability (see iOS setup)
+
+### Foreground Service (Android)
+The app uses Android foreground service to maintain GPS tracking:
+- Persistent notification shows ride stats (distance, time, speed)
+- Exempts app from background throttling
+- Configured in `AndroidManifest.xml` with location service type
+- Automatically starts/stops with ride tracking
+
 ## Next Steps
 
 1. **Test on Real Device**: Motion sensors don't work in emulators
 2. **Adjust Thresholds**: Fine-tune based on real-world usage
 3. **Add User Settings**: Allow users to configure sensitivity
 4. **Monitor Battery Impact**: Track actual battery usage in production
+5. **iOS Background Setup**: Add background location capability for iOS builds

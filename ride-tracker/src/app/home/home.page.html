@@ -1,12 +1,12 @@
 <!-- src/app/home/home.page.html -->
-<ng-container *ngIf="{ state: currentState$ | async, elapsed: elapsed$ | async } as vm">
+<ng-container *ngIf="{ state: currentState$ | async, elapsed: elapsed$ | async, totalTime: totalTime$ | async } as vm">
 
 <ion-header [translucent]="true">
   <ion-toolbar>
     <ion-title>Ride Tracker</ion-title>
     <ion-buttons slot="end">
       <ion-badge color="success" *ngIf="vm.state !== RideState.IDLE">
-        {{ vm.elapsed | apply:formatElapsed }}
+        {{ vm.totalTime | apply:formatElapsed }}
       </ion-badge>
     </ion-buttons>
   </ion-toolbar>

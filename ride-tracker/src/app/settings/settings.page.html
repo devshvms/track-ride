@@ -55,6 +55,17 @@
       <div class="settings-card">
         <div class="segment-wrapper">
           <div class="segment-label">
+            <h3>Tracking Mode</h3>
+            <p>Normal or Battery Saver</p>
+          </div>
+          <ion-segment [value]="settings.trackingMode" (ionChange)="onSelectChange('trackingMode', $event)">
+            <ion-segment-button value="normal">Normal</ion-segment-button>
+            <ion-segment-button value="battery_saver">Battery Saver</ion-segment-button>
+          </ion-segment>
+        </div>
+
+        <div class="segment-wrapper">
+          <div class="segment-label">
             <h3>GPS Accuracy</h3>
             <p>Higher = more battery</p>
           </div>
@@ -65,17 +76,21 @@
           </ion-segment>
         </div>
 
-        <div class="segment-wrapper">
+        <div class="segment-wrapper" *ngIf="settings.trackingMode === 'normal'">
           <div class="segment-label">
             <h3>Reading Interval</h3>
-            <p>GPS point frequency</p>
+            <p>GPS point frequency (Normal mode)</p>
           </div>
           <ion-segment [value]="settings.readingInterval" (ionChange)="onReadingIntervalChange($event)">
-            <ion-segment-button [value]="3">3s</ion-segment-button>
-            <ion-segment-button [value]="5">5s</ion-segment-button>
             <ion-segment-button [value]="10">10s</ion-segment-button>
             <ion-segment-button [value]="30">30s</ion-segment-button>
+            <ion-segment-button [value]="60">1min</ion-segment-button>
+            <ion-segment-button [value]="300">5min</ion-segment-button>
           </ion-segment>
+        </div>
+
+        <div class="info-text" *ngIf="settings.trackingMode === 'battery_saver'">
+          <p><ion-icon name="information-circle-outline"></ion-icon> Battery Saver mode uses 1 minute interval</p>
         </div>
       </div>
 

@@ -26,6 +26,7 @@ export class HomePage implements OnInit, OnDestroy {
   currentState$: Observable<RideState> = this.rideService.currentState$;
   currentRide$: Observable<Ride | null> = this.rideService.currentRide$;
   elapsed$: Observable<number> = this.rideService.elapsed$;
+  totalTime$: Observable<number> = this.rideService.totalTime$;
 
   RideState = RideState;
 

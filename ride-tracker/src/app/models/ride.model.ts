@@ -48,9 +48,13 @@ export interface GpsStatus {
   retryCount: number;
 }
 
+export type TrackingMode = 'normal' | 'battery_saver';
+export type IntervalPreset = 10 | 30 | 60 | 300; // 10s, 30s, 1min, 5min
+
 export interface AppSettings {
   gpsAccuracy: 'high' | 'balanced' | 'low';
-  readingInterval: number; // seconds
+  trackingMode: TrackingMode; // normal or battery_saver
+  readingInterval: IntervalPreset; // seconds - preset values only
   autoPause: {
     enabled: boolean;
     stationaryThreshold: number; // seconds
