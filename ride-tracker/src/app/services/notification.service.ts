@@ -83,16 +83,16 @@ export class NotificationService implements OnDestroy {
 
     this.rideSub = this.rideService.currentRide$.subscribe(ride => {
       if (ride && this.isTracking) {
+        // Just update internal data, don't trigger notification
         this.currentData.distance = ride.totalDistance;
         this.currentData.speed = ride.currentSpeed;
-        this.showNotification();
       }
     });
 
     this.elapsedSub = this.rideService.elapsed$.subscribe(elapsed => {
       if (this.isTracking) {
+        // Just update internal data, don't trigger notification
         this.currentData.elapsed = elapsed;
-        this.showNotification();
       }
     });
   }
@@ -103,8 +103,9 @@ export class NotificationService implements OnDestroy {
     this.isTracking = true;
     await this.showNotification();
     
-    // Notification will update automatically when data changes via subscriptions
-    // No need for interval-based updates
+    // Static persistent foreground notification
+    // Only updates on state changes (pause/resume/GPS lost)
+    // No updates for distance or time - completely silent
   }
 
   private stopTrackingNotification(): void {

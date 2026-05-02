@@ -2,13 +2,19 @@
 
 ## Issues Fixed
 
-### 1. ✅ Notification Ping Every 5 Seconds
-**Problem**: Notification was updating every 5 seconds causing annoying sounds/vibrations.
+### 1. ✅ Notification Spam (Every Second/5 Seconds)
+**Problem**: Notification was updating too frequently causing annoying popups and sounds.
 
 **Solution**: 
-- Removed the 5-second interval in `NotificationService`
-- Notifications now only update when data actually changes (state, distance, elapsed time)
-- Smart content comparison prevents duplicate updates
+- Implemented **Static Persistent Foreground Service Notification**
+- Notification is **completely silent** during tracking
+- Updates ONLY on **state changes**:
+  - Tracking → Paused (shows "Tap to resume")
+  - Paused → Tracking (shows stats)
+  - GPS Signal Lost (shows warning)
+- **NO updates** for distance or time changes
+- Notification just sits there silently while recording
+- Stats are shown when you end the ride
 
 **Files Modified**:
 - `src/app/services/notification.service.ts`
@@ -147,11 +153,14 @@ For maximum reliability, you can:
 }
 ```
 
-### Notification Update Triggers
-- State change (tracking → paused → tracking)
-- Distance change (every meter)
-- Elapsed time change (every second)
-- Speed change
+### Notification Update Triggers (Static Persistent Notification)
+- **State changes ONLY**:
+  - Tracking → Paused
+  - Paused → Tracking  
+  - GPS Signal Lost
+- **NO updates** for distance or time
+- Completely silent during tracking
+- Content comparison prevents duplicate updates
 
 ### Wake Lock
 - Acquired: When ride starts
