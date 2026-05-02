@@ -68,19 +68,60 @@
         <ng-container *ngIf="currentRide$ | async as ride">
           <!-- Scrollable content wrapper -->
           <div class="tracking-content">
-            <!-- Mini Live Map -->
+            <!-- Live Map - Prominent at top -->
             <app-live-map 
               [points]="ride.points" 
               [isTracking]="vm.state === RideState.TRACKING">
             </app-live-map>
 
+            <!-- Activity Type Badge -->
+            <div class="activity-badge">
+              <ion-icon name="bicycle"></ion-icon>
+              <span>Riding</span>
+            </div>
+
             <!-- Timer prominent display -->
             <div class="elapsed-display">
               <span class="elapsed-time">{{ vm.elapsed | apply:formatElapsed }}</span>
-              <span class="elapsed-label">elapsed</span>
             </div>
 
-            <!-- Stats Grid — 6 cards per workflow (distance, speed, avg, max, breaks, GPS pts) -->
+            <!-- Primary Stats - 2 column grid -->
+            <div class="primary-stats-grid">
+              <div class="primary-stat">
+                <ion-icon name="navigate-outline"></ion-icon>
+                <div class="stat-content">
+                  <span class="stat-value">{{ ride.totalDistance | distance }}</span>
+                  <span class="stat-unit">mi</span>
+                </div>
+              </div>
+              <div class="primary-stat">
+                <ion-icon name="footsteps-outline"></ion-icon>
+                <div class="stat-content">
+                  <span class="stat-value">{{ ride.points.length }}</span>
+                  <span class="stat-unit">steps</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Secondary Stats - 2 column grid -->
+            <div class="secondary-stats-grid">
+              <div class="secondary-stat">
+                <ion-icon name="flame-outline"></ion-icon>
+                <div class="stat-content">
+                  <span class="stat-value">{{ (ride.totalDistance * 50) | number:'1.0-0' }}</span>
+                  <span class="stat-unit">cal</span>
+                </div>
+              </div>
+              <div class="secondary-stat">
+                <ion-icon name="speedometer-outline"></ion-icon>
+                <div class="stat-content">
+                  <span class="stat-value">{{ ride.averageSpeed | speed }}</span>
+                  <span class="stat-unit">km/h</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Expandable detailed stats -->
             <div class="stats-grid">
               <div class="stat-card">
                 <span class="stat-value">{{ ride.totalDistance | distance }}</span>

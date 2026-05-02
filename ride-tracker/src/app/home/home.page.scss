@@ -112,20 +112,38 @@
   50%       { opacity: 0.6; }
 }
 
+// ── ACTIVITY BADGE ──────────────────────────────────────────
+.activity-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 20px;
+  background: rgba(var(--ion-color-primary-rgb), 0.1);
+  color: var(--ion-color-primary);
+  font-size: 0.9rem;
+  font-weight: 600;
+  
+  ion-icon {
+    font-size: 18px;
+  }
+}
+
 // ── ELAPSED TIMER ───────────────────────────────────────────
 .elapsed-display {
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin: 8px 0;
+  margin: 12px 0 20px 0;
 }
 
 .elapsed-time {
-  font-size: 3rem;
+  font-size: 3.5rem;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.02em;
   line-height: 1;
+  color: var(--ion-text-color);
 }
 
 .elapsed-label {
@@ -133,6 +151,94 @@
   color: var(--ion-color-medium);
   text-transform: uppercase;
   letter-spacing: 0.1em;
+}
+
+// ── PRIMARY STATS GRID ──────────────────────────────────────
+.primary-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  width: 100%;
+  margin-bottom: 12px;
+}
+
+.primary-stat {
+  background: var(--ion-item-background, var(--ion-background-color));
+  border-radius: 16px;
+  padding: 20px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  
+  ion-icon {
+    font-size: 28px;
+    color: var(--ion-color-primary);
+    flex-shrink: 0;
+  }
+  
+  .stat-content {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+  }
+  
+  .stat-value {
+    font-size: 1.8rem;
+    font-weight: 700;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+  
+  .stat-unit {
+    font-size: 0.9rem;
+    color: var(--ion-color-medium);
+    font-weight: 500;
+  }
+}
+
+// ── SECONDARY STATS GRID ────────────────────────────────────
+.secondary-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  width: 100%;
+  margin-bottom: 16px;
+}
+
+.secondary-stat {
+  background: var(--ion-item-background, var(--ion-background-color));
+  border-radius: 16px;
+  padding: 16px 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  
+  ion-icon {
+    font-size: 24px;
+    color: var(--ion-color-medium);
+    flex-shrink: 0;
+  }
+  
+  .stat-content {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+  }
+  
+  .stat-value {
+    font-size: 1.4rem;
+    font-weight: 700;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+  
+  .stat-unit {
+    font-size: 0.8rem;
+    color: var(--ion-color-medium);
+    font-weight: 500;
+  }
 }
 
 // ── STATS GRID ───────────────────────────────────────────────
