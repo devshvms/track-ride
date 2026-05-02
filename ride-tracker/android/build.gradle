@@ -24,6 +24,22 @@ allprojects {
     }
 }
 
+// Fix for plugins using deprecated 'proguard-android.txt' (e.g. background-geolocation)
+subprojects {
+    afterEvaluate { project ->
+        if (project.hasProperty('android')) {
+            project.android.buildTypes.each { buildType ->
+                def oldFile = getDefaultProguardFile('proguard-android.txt')
+                def newFile = getDefaultProguardFile('proguard-android-optimize.txt')
+                if (buildType.proguardFiles.contains(oldFile)) {
+                    buildType.proguardFiles.remove(oldFile)
+                    buildType.proguardFiles.add(newFile)
+                }
+            }
+        }
+    }
+}
+
 task clean(type: Delete) {
     delete rootProject.buildDir
 }
