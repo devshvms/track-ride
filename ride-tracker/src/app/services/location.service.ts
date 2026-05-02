@@ -33,13 +33,33 @@ export class LocationService {
     }
 
     if (this.isTracking) {
-      console.warn('Tracking already active');
+      console.warn('Tracking already active - ignoring duplicate start request');
       return;
     }
 
     this.isTracking = true;
     
+    // Clean up any existing subscriptions/intervals first
+    if (this.settingsSub) {
+      this.settingsSub.unsubscribe();
+      this.settingsSub = null;
+    }
+    if (this.intervalId !== null) {
+      clearInterval(this.intervalId);
+      this.intervalId = null;
+    }
+    
+    // Start with current settings first
+    this.startWithCurrentSettings();
+    
+    // Then subscribe to settings changes (skip first emission since we just started)
+    let isFirstEmission = true;
     this.settingsSub = this.settings.settings$.subscribe(settings => {
+      if (isFirstEmission) {
+        isFirstEmission = false;
+        return; // Skip first emission to avoid duplicate start
+      }
+      
       const newInterval = this.getIntervalForMode(settings.trackingMode, settings.readingInterval);
       const newAccuracy = settings.gpsAccuracy;
       
@@ -49,8 +69,6 @@ export class LocationService {
         this.restartWithNewSettings();
       }
     });
-
-    this.startWithCurrentSettings();
   }
 
   /**
@@ -69,6 +87,12 @@ export class LocationService {
     const userSettings = this.settings.currentSettings;
     this.currentInterval = this.getIntervalForMode(userSettings.trackingMode, userSettings.readingInterval);
     this.currentAccuracy = userSettings.gpsAccuracy;
+    
+    // Clear any existing interval first (safety check)
+    if (this.intervalId !== null) {
+      clearInterval(this.intervalId);
+      this.intervalId = null;
+    }
     
     const highAccuracy = this.currentAccuracy === 'high';
     const options: PositionOptions = {
