@@ -36,8 +36,7 @@ export class RideService {
   private autoPauseSub?: Subscription;
   private gpsMonitorSub?: Subscription;
   private motionSub?: Subscription;
-  private elapsedTimer?: ReturnType<typeof setInterval>;
-  private totalTimeTimer?: ReturnType<typeof setInterval>;
+  private uiRefreshTimer?: ReturnType<typeof setInterval>;
   private pauseStartTime?: number;
   private motionCheckInProgress = false;
   private bgGeoActive = false;
@@ -86,53 +85,50 @@ export class RideService {
       this.foregroundService.startForegroundService(0, 0, 0);
     }
     this.initTrackingSubscriptions();
-    this.startElapsedTimer();
-    this.startTotalTimeTimer();
+    this.recalculateElapsed();
+    this.startUiRefreshTimer();
     this.gpsMonitor.resetStatus();
   }
 
-  private startElapsedTimer(): void {
-    this.stopElapsedTimer();
-    this.elapsedTimer = setInterval(() => {
-      const state = this.stateSubject.value;
-      if (state === RideState.TRACKING || state === RideState.GPS_SIGNAL_LOST) {
-        this.elapsedSubject.next(this.elapsedSubject.value + 1);
-        
-        // Update foreground service notification
-        const ride = this.currentRideSubject.value;
-        if (ride) {
-          this.foregroundService.updateForegroundService(
-            ride.totalDistance,
-            this.elapsedSubject.value,
-            ride.currentSpeed
-          );
-        }
-      }
-    }, 1000);
-  }
+  /**
+   * Recalculate elapsed and total time from wall-clock timestamps.
+   * This is immune to setInterval throttling when screen is off / app backgrounded.
+   */
+  private recalculateElapsed(): void {
+    const ride = this.currentRideSubject.value;
+    if (!ride) return;
 
-  private stopElapsedTimer(): void {
-    if (this.elapsedTimer) {
-      clearInterval(this.elapsedTimer);
-      this.elapsedTimer = undefined;
+    const now = Date.now();
+    const state = this.stateSubject.value;
+
+    // Total time = wall-clock since ride started
+    const totalTimeMs = now - ride.startTime;
+    this.totalTimeSubject.next(Math.floor(totalTimeMs / 1000));
+
+    // Elapsed = total time - all completed pause durations - current ongoing pause
+    let pausedMs = ride.totalPausedTime ?? 0;
+    if (this.pauseStartTime && (state === RideState.PAUSED || state === RideState.AUTO_PAUSED)) {
+      pausedMs += (now - this.pauseStartTime);
     }
+    const elapsedMs = Math.max(0, totalTimeMs - pausedMs);
+    this.elapsedSubject.next(Math.floor(elapsedMs / 1000));
   }
 
-  private startTotalTimeTimer(): void {
-    this.stopTotalTimeTimer();
-    this.totalTimeTimer = setInterval(() => {
-      const state = this.stateSubject.value;
-      // Count total time in all states except IDLE and RIDE_SUMMARY
-      if (state !== RideState.IDLE && state !== RideState.RIDE_SUMMARY) {
-        this.totalTimeSubject.next(this.totalTimeSubject.value + 1);
-      }
+  /**
+   * UI refresh timer — only for smooth display updates when app is in foreground.
+   * The actual elapsed value is always wall-clock based (survives background).
+   */
+  private startUiRefreshTimer(): void {
+    this.stopUiRefreshTimer();
+    this.uiRefreshTimer = setInterval(() => {
+      this.recalculateElapsed();
     }, 1000);
   }
 
-  private stopTotalTimeTimer(): void {
-    if (this.totalTimeTimer) {
-      clearInterval(this.totalTimeTimer);
-      this.totalTimeTimer = undefined;
+  private stopUiRefreshTimer(): void {
+    if (this.uiRefreshTimer) {
+      clearInterval(this.uiRefreshTimer);
+      this.uiRefreshTimer = undefined;
     }
   }
 
@@ -145,6 +141,9 @@ export class RideService {
       await this.bgGeo.startTracking((point: GpsPoint) => {
         // Report successful GPS fix to monitor (critical when LocationService is not started)
         this.gpsMonitor.reportFix();
+        
+        // Recalculate elapsed from wall-clock (survives background/screen-off)
+        this.recalculateElapsed();
         
         // Process GPS points from background geolocation
         this.autoPause.evaluateMovement(point.speed ?? undefined);
@@ -166,6 +165,19 @@ export class RideService {
   private startLocationProcessing(): void {
     this.location.startTracking();
     this.locationSub = this.location.location$.subscribe(point => {
+      // Recalculate elapsed from wall-clock on each GPS fix
+      this.recalculateElapsed();
+      
+      // Update legacy foreground service notification (only active when bgGeo failed)
+      const ride = this.currentRideSubject.value;
+      if (ride) {
+        this.foregroundService.updateForegroundService(
+          ride.totalDistance,
+          this.elapsedSubject.value,
+          ride.currentSpeed
+        );
+      }
+      
       this.autoPause.evaluateMovement(point.speed ?? undefined);
       const state = this.stateSubject.value;
       
@@ -389,8 +401,7 @@ export class RideService {
     this.location.stopTracking();
     this.autoPause.stopListening();
     this.motionDetection.stopMonitoring();
-    this.stopElapsedTimer();
-    this.stopTotalTimeTimer();
+    this.stopUiRefreshTimer();
     this.locationSub?.unsubscribe();
     this.locationErrorSub?.unsubscribe();
     this.autoPauseSub?.unsubscribe();

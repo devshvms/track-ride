@@ -32,7 +32,6 @@ export class NotificationService implements OnDestroy {
   };
 
   private lastNotificationContent: { title: string; body: string; actionTypeId: string } | null = null;
-  private notificationUpdateTimer?: ReturnType<typeof setInterval>;
 
   constructor(private rideService: RideService) {
     this.initStateListener();
@@ -41,7 +40,6 @@ export class NotificationService implements OnDestroy {
 
   ngOnDestroy(): void {
     this.stopTrackingNotification();
-    this.stopNotificationUpdateTimer();
     this.stateSub?.unsubscribe();
     this.rideSub?.unsubscribe();
     this.elapsedSub?.unsubscribe();
@@ -93,8 +91,13 @@ export class NotificationService implements OnDestroy {
 
     this.elapsedSub = this.rideService.elapsed$.subscribe(elapsed => {
       if (this.isTracking) {
-        // Just update internal data, don't trigger notification
+        const prevMinute = Math.floor(this.currentData.elapsed / 60);
         this.currentData.elapsed = elapsed;
+        const newMinute = Math.floor(elapsed / 60);
+        // Update notification once per minute to keep it fresh without spamming
+        if (newMinute > prevMinute) {
+          this.showNotification();
+        }
       }
     });
   }
@@ -104,33 +107,17 @@ export class NotificationService implements OnDestroy {
     
     this.isTracking = true;
     await this.showNotification();
-    
-    // Periodically update notification with current elapsed/distance data
-    // every 30 seconds so the notification doesn't show stale info
-    this.stopNotificationUpdateTimer();
-    this.notificationUpdateTimer = setInterval(() => {
-      if (this.isTracking) {
-        // Force update by clearing last content so showNotification will re-render
-        this.lastNotificationContent = null;
-        this.showNotification();
-      }
-    }, 30000);
+    // Notification updates are driven by elapsed$ changes (see initStateListener).
+    // No periodic timer needed — elapsed$ is updated by bgGeo callbacks
+    // which survive background/screen-off.
   }
 
   private stopTrackingNotification(): void {
     this.isTracking = false;
     this.lastNotificationContent = null;
-    this.stopNotificationUpdateTimer();
     
     if (Capacitor.isNativePlatform()) {
       LocalNotifications.cancel({ notifications: [{ id: TRACKING_NOTIFICATION_ID }] });
-    }
-  }
-
-  private stopNotificationUpdateTimer(): void {
-    if (this.notificationUpdateTimer) {
-      clearInterval(this.notificationUpdateTimer);
-      this.notificationUpdateTimer = undefined;
     }
   }
 
@@ -195,7 +182,7 @@ export class NotificationService implements OnDestroy {
         autoCancel: false,
         smallIcon: 'ic_stat_icon',
         largeIcon: 'ic_launcher',
-        channelId: 'ride_tracking',
+        channelId: 'ride_tracking_v2',
         actionTypeId,
         extra: {
           state: state.toString()
@@ -205,7 +192,7 @@ export class NotificationService implements OnDestroy {
         // Android specific - show on lockscreen with actions
         ...(Capacitor.getPlatform() === 'android' && {
           visibility: 1, // PUBLIC - visible on lockscreen
-          priority: 1 // HIGH priority
+          priority: 0 // DEFAULT priority - no heads-up or sound
         })
       }]
     };
@@ -225,10 +212,10 @@ export class NotificationService implements OnDestroy {
 
     try {
       await LocalNotifications.createChannel({
-        id: 'ride_tracking',
+        id: 'ride_tracking_v2',
         name: 'Ride Tracking',
         description: 'Shows ride tracking status and controls',
-        importance: 4, // HIGH - ensures visibility on lockscreen
+        importance: 3, // DEFAULT - silent, visible on lockscreen (HIGH=4 causes sound on some devices)
         visibility: 1, // PUBLIC - shows full content on lockscreen
         vibration: false,
         sound: undefined,
@@ -284,7 +271,7 @@ export class NotificationService implements OnDestroy {
           title,
           body,
           smallIcon: 'ic_stat_icon',
-          channelId: 'ride_tracking'
+          channelId: 'ride_tracking_v2'
         }]
       });
     } catch (error) {
