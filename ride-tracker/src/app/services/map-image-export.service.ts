@@ -40,6 +40,9 @@ export class MapImageExportService {
     // Use device pixel ratio for proper scaling
     const pixelRatio = window.devicePixelRatio || 1;
 
+    // Get the element's position to account for any offsets
+    const rect = mapEl.getBoundingClientRect();
+    
     // Capture the map using html2canvas
     const mapCanvas = await html2canvas(mapEl, {
       useCORS: true,
@@ -50,7 +53,12 @@ export class MapImageExportService {
       width: mapEl.offsetWidth,
       height: mapEl.offsetHeight,
       windowWidth: mapEl.offsetWidth,
-      windowHeight: mapEl.offsetHeight
+      windowHeight: mapEl.offsetHeight,
+      x: 0,
+      y: 0,
+      scrollX: 0,
+      scrollY: 0,
+      foreignObjectRendering: false // Disable to avoid transform issues
     });
 
     // Create final canvas with map + details overlay
@@ -114,6 +122,11 @@ export class MapImageExportService {
       height: mapContainer.offsetHeight,
       windowWidth: mapContainer.offsetWidth,
       windowHeight: mapContainer.offsetHeight,
+      x: 0,
+      y: 0,
+      scrollX: 0,
+      scrollY: 0,
+      foreignObjectRendering: false, // Disable to avoid transform issues
       onclone: (clonedDoc) => {
         // Ensure map tiles are visible in clone
         const clonedMap = clonedDoc.getElementById('ride-map');
@@ -165,8 +178,13 @@ export class MapImageExportService {
       // Force Leaflet to recalculate its size and invalidate
       leafletMap.invalidateSize({ pan: false });
       
+      // Force a repaint to ensure all transforms are applied
+      const currentCenter = leafletMap.getCenter();
+      const currentZoom = leafletMap.getZoom();
+      leafletMap.setView(currentCenter, currentZoom, { animate: false });
+      
       // Wait for the map to finish rendering
-      await new Promise(resolve => setTimeout(resolve, 300));
+      await new Promise(resolve => setTimeout(resolve, 500));
     }
   }
 
