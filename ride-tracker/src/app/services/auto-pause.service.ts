@@ -109,13 +109,16 @@ export class AutoPauseService {
   }
 
   handleGpsStatus(isLost: boolean): void {
+    // GPS Signal Lost is handled by RideService via GPS_SIGNAL_LOST state.
+    // Do NOT trigger auto-pause here — doing so would freeze the elapsed timer
+    // because AUTO_PAUSED stops the timer, but the user expects tracking to continue.
+    // The GPS_SIGNAL_LOST state keeps the timer running while searching for signal.
     if (!this.isTrackingActive) return;
-    const s = this.settings.currentSettings;
-    if (s.autoPause.enabled && s.autoPause.pauseOnGpsLost) {
-      this.eventSubject.next({
-        pause: isLost,
-        reason: isLost ? 'auto:gps_lost' : undefined
-      });
+    
+    if (isLost) {
+      // When GPS is lost, clear any pending stationary timer to avoid
+      // false auto-pause from lack of speed readings
+      this.clearStationaryTimer();
     }
   }
 

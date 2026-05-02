@@ -143,6 +143,9 @@ export class RideService {
   private async startBackgroundGeolocation(): Promise<void> {
     try {
       await this.bgGeo.startTracking((point: GpsPoint) => {
+        // Report successful GPS fix to monitor (critical when LocationService is not started)
+        this.gpsMonitor.reportFix();
+        
         // Process GPS points from background geolocation
         this.autoPause.evaluateMovement(point.speed ?? undefined);
         const state = this.stateSubject.value;

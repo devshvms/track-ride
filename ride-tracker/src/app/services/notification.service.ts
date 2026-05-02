@@ -32,6 +32,7 @@ export class NotificationService implements OnDestroy {
   };
 
   private lastNotificationContent: { title: string; body: string; actionTypeId: string } | null = null;
+  private notificationUpdateTimer?: ReturnType<typeof setInterval>;
 
   constructor(private rideService: RideService) {
     this.initStateListener();
@@ -40,6 +41,7 @@ export class NotificationService implements OnDestroy {
 
   ngOnDestroy(): void {
     this.stopTrackingNotification();
+    this.stopNotificationUpdateTimer();
     this.stateSub?.unsubscribe();
     this.rideSub?.unsubscribe();
     this.elapsedSub?.unsubscribe();
@@ -103,17 +105,32 @@ export class NotificationService implements OnDestroy {
     this.isTracking = true;
     await this.showNotification();
     
-    // Static persistent foreground notification
-    // Only updates on state changes (pause/resume/GPS lost)
-    // No updates for distance or time - completely silent
+    // Periodically update notification with current elapsed/distance data
+    // every 30 seconds so the notification doesn't show stale info
+    this.stopNotificationUpdateTimer();
+    this.notificationUpdateTimer = setInterval(() => {
+      if (this.isTracking) {
+        // Force update by clearing last content so showNotification will re-render
+        this.lastNotificationContent = null;
+        this.showNotification();
+      }
+    }, 30000);
   }
 
   private stopTrackingNotification(): void {
     this.isTracking = false;
     this.lastNotificationContent = null;
+    this.stopNotificationUpdateTimer();
     
     if (Capacitor.isNativePlatform()) {
       LocalNotifications.cancel({ notifications: [{ id: TRACKING_NOTIFICATION_ID }] });
+    }
+  }
+
+  private stopNotificationUpdateTimer(): void {
+    if (this.notificationUpdateTimer) {
+      clearInterval(this.notificationUpdateTimer);
+      this.notificationUpdateTimer = undefined;
     }
   }
 

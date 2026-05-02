@@ -66,6 +66,11 @@ export class GpsMonitorService {
     this.markLost();
   }
 
+  /** Public method to report a successful GPS fix from external sources (e.g. BackgroundGeolocation) */
+  reportFix(): void {
+    this.onSignalReceived();
+  }
+
   private scheduleTimeout(): void {
     this.timeoutSubscription?.unsubscribe();
     // FIX: gpsLostTimeout is now in seconds — multiply by 1000 for ms
