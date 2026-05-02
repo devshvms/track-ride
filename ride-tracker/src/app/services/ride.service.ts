@@ -132,15 +132,21 @@ export class RideService {
     this.location.startTracking();
     this.locationSub = this.location.location$.subscribe(point => {
       this.autoPause.evaluateMovement(point.speed ?? undefined);
-      if (this.stateSubject.value === RideState.TRACKING) {
+      const state = this.stateSubject.value;
+      
+      // Process points in TRACKING or GPS_SIGNAL_LOST states
+      // This allows automatic recovery when GPS signal returns
+      if (state === RideState.TRACKING || state === RideState.GPS_SIGNAL_LOST) {
         this.processNewPoint(point);
       }
     });
     // Handle location errors gracefully
     this.locationErrorSub = this.location.error$.subscribe(err => {
       console.warn('GPS Error:', err.code, err.message || 'Location unavailable');
+      const state = this.stateSubject.value;
+      
       // Trigger GPS signal lost state for tracking
-      if (this.stateSubject.value === RideState.TRACKING) {
+      if (state === RideState.TRACKING || state === RideState.GPS_SIGNAL_LOST) {
         this.gpsMonitor.reportError();
       }
     });

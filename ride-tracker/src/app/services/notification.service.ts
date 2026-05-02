@@ -120,7 +120,7 @@ export class NotificationService implements OnDestroy {
   private updateNotificationForState(state: RideState): void {
     switch (state) {
       case RideState.GPS_SIGNAL_LOST:
-        this.currentData.warning = '⚠️ GPS Signal Lost';
+        this.currentData.warning = '⚠️ GPS Signal Lost - Searching...';
         break;
       case RideState.AUTO_PAUSED:
         this.currentData.warning = '⏸️ Auto-Paused';
