@@ -12,6 +12,7 @@ import { MotionDetectionService } from './motion-detection.service';
 import { ForegroundServiceService } from './foreground-service.service';
 import { BackgroundTaskService } from './background-task.service';
 import { PowerManagementService } from './power-management.service';
+import { BackgroundGeolocationService } from './background-geolocation.service';
 import { RideUtils } from '../utils/ride-calculations';
 
 @Injectable({ providedIn: 'root' })
@@ -39,6 +40,7 @@ export class RideService {
   private totalTimeTimer?: ReturnType<typeof setInterval>;
   private pauseStartTime?: number;
   private motionCheckInProgress = false;
+  private bgGeoActive = false;
 
   constructor(
     private settings: SettingsService,
@@ -49,10 +51,11 @@ export class RideService {
     private motionDetection: MotionDetectionService,
     private foregroundService: ForegroundServiceService,
     private backgroundTask: BackgroundTaskService,
-    private powerManagement: PowerManagementService
+    private powerManagement: PowerManagementService,
+    private bgGeo: BackgroundGeolocationService
   ) {}
 
-  startRide(): void {
+  async startRide(): Promise<void> {
     const newRide: Ride = {
       id: Date.now().toString(),
       startTime: Date.now(),
@@ -73,14 +76,19 @@ export class RideService {
     // Acquire wake lock to prevent device sleep during tracking
     this.powerManagement.acquireWakeLock();
     
-    this.startLocationProcessing();
+    // Start background geolocation (true foreground service)
+    await this.startBackgroundGeolocation();
+    
+    // Only start regular location service as fallback if bgGeo failed
+    if (!this.bgGeoActive) {
+      this.startLocationProcessing();
+      // Start legacy foreground service only when bgGeo is not active
+      this.foregroundService.startForegroundService(0, 0, 0);
+    }
     this.initTrackingSubscriptions();
     this.startElapsedTimer();
     this.startTotalTimeTimer();
     this.gpsMonitor.resetStatus();
-    
-    // Start foreground service for background GPS tracking
-    this.foregroundService.startForegroundService(0, 0, 0);
   }
 
   private startElapsedTimer(): void {
@@ -125,6 +133,30 @@ export class RideService {
     if (this.totalTimeTimer) {
       clearInterval(this.totalTimeTimer);
       this.totalTimeTimer = undefined;
+    }
+  }
+
+  /**
+   * Start background geolocation with true Android foreground service.
+   * This prevents the app from being killed in background.
+   */
+  private async startBackgroundGeolocation(): Promise<void> {
+    try {
+      await this.bgGeo.startTracking((point: GpsPoint) => {
+        // Process GPS points from background geolocation
+        this.autoPause.evaluateMovement(point.speed ?? undefined);
+        const state = this.stateSubject.value;
+        
+        // Process points in TRACKING or GPS_SIGNAL_LOST states
+        if (state === RideState.TRACKING || state === RideState.GPS_SIGNAL_LOST) {
+          this.processNewPoint(point);
+        }
+      });
+      this.bgGeoActive = true;
+      console.log('Background geolocation started - foreground service active');
+    } catch (error) {
+      console.error('Failed to start background geolocation, falling back to LocationService:', error);
+      this.bgGeoActive = false;
     }
   }
 
@@ -276,19 +308,19 @@ export class RideService {
     }
   }
 
-  stopAndSaveRide(): void {
+  async stopAndSaveRide(): Promise<void> {
     const ride = this.currentRideSubject.value;
     if (ride) {
       const finalRide: Ride = { ...ride, endTime: Date.now() };
       this.history.saveRide(finalRide);
       this.currentRideSubject.next(finalRide);
     }
-    this.cleanupTracking();
+    await this.cleanupTracking();
     this.stateSubject.next(RideState.RIDE_SUMMARY);
   }
 
-  discardRide(): void {
-    this.cleanupTracking();
+  async discardRide(): Promise<void> {
+    await this.cleanupTracking();
     this.currentRideSubject.next(null);
     this.stateSubject.next(RideState.IDLE);
   }
@@ -339,7 +371,18 @@ export class RideService {
     );
   }
 
-  private cleanupTracking(): void {
+  private async cleanupTracking(): Promise<void> {
+    // Stop background geolocation (true foreground service)
+    if (this.bgGeoActive) {
+      try {
+        await this.bgGeo.stopTracking();
+        this.bgGeoActive = false;
+        console.log('Background geolocation stopped');
+      } catch (error) {
+        console.error('Error stopping background geolocation:', error);
+      }
+    }
+    
     this.location.stopTracking();
     this.autoPause.stopListening();
     this.motionDetection.stopMonitoring();
@@ -351,7 +394,7 @@ export class RideService {
     this.gpsMonitorSub?.unsubscribe();
     this.motionSub?.unsubscribe();
     
-    // Stop foreground service
+    // Stop foreground service notification (legacy)
     this.foregroundService.stopForegroundService();
     
     // Release wake lock to save battery
