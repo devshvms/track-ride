@@ -11,6 +11,7 @@ import { AutoPauseService } from './auto-pause.service';
 import { MotionDetectionService } from './motion-detection.service';
 import { ForegroundServiceService } from './foreground-service.service';
 import { BackgroundTaskService } from './background-task.service';
+import { PowerManagementService } from './power-management.service';
 import { RideUtils } from '../utils/ride-calculations';
 
 @Injectable({ providedIn: 'root' })
@@ -47,7 +48,8 @@ export class RideService {
     private autoPause: AutoPauseService,
     private motionDetection: MotionDetectionService,
     private foregroundService: ForegroundServiceService,
-    private backgroundTask: BackgroundTaskService
+    private backgroundTask: BackgroundTaskService,
+    private powerManagement: PowerManagementService
   ) {}
 
   startRide(): void {
@@ -67,6 +69,10 @@ export class RideService {
     this.totalTimeSubject.next(0);
     this.stateSubject.next(RideState.TRACKING);
     this.autoPause.startListening();
+    
+    // Acquire wake lock to prevent device sleep during tracking
+    this.powerManagement.acquireWakeLock();
+    
     this.startLocationProcessing();
     this.initTrackingSubscriptions();
     this.startElapsedTimer();
@@ -341,5 +347,8 @@ export class RideService {
     
     // Stop foreground service
     this.foregroundService.stopForegroundService();
+    
+    // Release wake lock to save battery
+    this.powerManagement.releaseWakeLock();
   }
 }

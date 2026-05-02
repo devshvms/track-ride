@@ -20,7 +20,6 @@ export interface NotificationData {
 @Injectable({ providedIn: 'root' })
 export class NotificationService implements OnDestroy {
   private isTracking = false;
-  private updateInterval: ReturnType<typeof setInterval> | null = null;
   private stateSub?: Subscription;
   private rideSub?: Subscription;
   private elapsedSub?: Subscription;
@@ -83,14 +82,18 @@ export class NotificationService implements OnDestroy {
     });
 
     this.rideSub = this.rideService.currentRide$.subscribe(ride => {
-      if (ride) {
+      if (ride && this.isTracking) {
         this.currentData.distance = ride.totalDistance;
         this.currentData.speed = ride.currentSpeed;
+        this.showNotification();
       }
     });
 
     this.elapsedSub = this.rideService.elapsed$.subscribe(elapsed => {
-      this.currentData.elapsed = elapsed;
+      if (this.isTracking) {
+        this.currentData.elapsed = elapsed;
+        this.showNotification();
+      }
     });
   }
 
@@ -100,20 +103,13 @@ export class NotificationService implements OnDestroy {
     this.isTracking = true;
     await this.showNotification();
     
-    // Update notification every 5 seconds
-    this.updateInterval = setInterval(() => {
-      this.showNotification();
-    }, 5000);
+    // Notification will update automatically when data changes via subscriptions
+    // No need for interval-based updates
   }
 
   private stopTrackingNotification(): void {
     this.isTracking = false;
     this.lastNotificationContent = null;
-    
-    if (this.updateInterval) {
-      clearInterval(this.updateInterval);
-      this.updateInterval = null;
-    }
     
     if (Capacitor.isNativePlatform()) {
       LocalNotifications.cancel({ notifications: [{ id: TRACKING_NOTIFICATION_ID }] });

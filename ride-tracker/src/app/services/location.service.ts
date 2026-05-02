@@ -73,8 +73,8 @@ export class LocationService {
     const highAccuracy = this.currentAccuracy === 'high';
     const options: PositionOptions = {
       enableHighAccuracy: highAccuracy,
-      timeout: 15000,
-      maximumAge: 0 // Always get fresh location
+      timeout: 30000, // Increased to 30s for better reliability in background
+      maximumAge: 5000 // Allow slightly cached location (5s) to prevent timeouts
     };
 
     // Get initial position immediately
@@ -88,6 +88,7 @@ export class LocationService {
     }, intervalMs);
     
     console.log(`GPS tracking started with ${this.currentInterval}s interval (${userSettings.trackingMode} mode)`);
+    console.log('Background GPS enabled - ensure battery optimization is disabled');
   }
 
   /**
@@ -104,9 +105,22 @@ export class LocationService {
 
   private handleError(err: GeolocationPositionError): void {
     console.warn('GPS Error:', err.code, err.message);
+    
+    // Error codes:
+    // 1 = PERMISSION_DENIED
+    // 2 = POSITION_UNAVAILABLE
+    // 3 = TIMEOUT
+    
+    if (err.code === 1) {
+      console.error('GPS permission denied - tracking may fail');
+    } else if (err.code === 3) {
+      console.warn('GPS timeout - will retry on next interval');
+    }
+    
     this.errorSubject.next(err);
     
     // Don't stop tracking on errors - interval will retry on next tick
+    // This prevents "GPS Signal Lost" from stopping the entire tracking
   }
 
   private handlePosition(pos: GeolocationPosition): void {
