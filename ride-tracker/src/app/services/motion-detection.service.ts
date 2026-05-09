@@ -1,5 +1,5 @@
 import { Injectable, NgZone } from '@angular/core';
-import { Motion } from '@capacitor/motion';
+import { Motion, AccelListenerEvent } from '@capacitor/motion';
 import { Subject } from 'rxjs';
 import { GpsPoint } from '../models/ride.model';
 import { RideUtils } from '../utils/ride-calculations';
@@ -20,14 +20,14 @@ export class MotionDetectionService {
 
   private isListening = false;
   private listenerHandle: PluginListenerHandle | null = null;
-  
+
   private accelerationBuffer: number[] = [];
   private readonly BUFFER_SIZE = 10;
   private readonly MOVEMENT_THRESHOLD = 2.0;
-  
+
   private pauseLocation: GpsPoint | null = null;
   private readonly DISTANCE_THRESHOLD = 50;
-  
+
   private lastCheckTime = 0;
   private readonly CHECK_COOLDOWN = 5000;
 
@@ -43,7 +43,7 @@ export class MotionDetectionService {
     this.lastCheckTime = 0;
 
     try {
-      this.listenerHandle = await Motion.addListener('accel', (event) => {
+      this.listenerHandle = await Motion.addListener('accel', (event: AccelListenerEvent) => {
         this.zone.run(() => {
           this.handleAcceleration(event.acceleration);
         });
@@ -69,13 +69,13 @@ export class MotionDetectionService {
 
   private handleAcceleration(accel: { x: number; y: number; z: number }): void {
     const magnitude = Math.sqrt(
-      accel.x * accel.x + 
-      accel.y * accel.y + 
+      accel.x * accel.x +
+      accel.y * accel.y +
       accel.z * accel.z
     );
 
     const normalizedMagnitude = Math.abs(magnitude - 9.81);
-    
+
     this.accelerationBuffer.push(normalizedMagnitude);
     if (this.accelerationBuffer.length > this.BUFFER_SIZE) {
       this.accelerationBuffer.shift();
@@ -83,9 +83,9 @@ export class MotionDetectionService {
 
     if (this.accelerationBuffer.length === this.BUFFER_SIZE) {
       const avgAcceleration = this.accelerationBuffer.reduce((a, b) => a + b, 0) / this.BUFFER_SIZE;
-      
+
       const now = Date.now();
-      if (avgAcceleration > this.MOVEMENT_THRESHOLD && 
+      if (avgAcceleration > this.MOVEMENT_THRESHOLD &&
           (now - this.lastCheckTime) > this.CHECK_COOLDOWN) {
         this.lastCheckTime = now;
         this.motionSubject.next({
