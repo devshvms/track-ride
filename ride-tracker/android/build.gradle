@@ -1,13 +1,13 @@
 // Top-level build file where you can add configuration options common to all sub-projects/modules.
 
 buildscript {
-    
+
     repositories {
         google()
         mavenCentral()
     }
     dependencies {
-        classpath 'com.android.tools.build:gradle:8.13.0'
+        classpath 'com.android.tools.build:gradle:9.1.1'
         classpath 'com.google.gms:google-services:4.4.4'
 
         // NOTE: Do not place your application dependencies here; they belong
@@ -24,17 +24,16 @@ allprojects {
     }
 }
 
-// Fix for plugins using deprecated 'proguard-android.txt' (e.g. background-geolocation)
+// Workaround for plugins using the deprecated 'proguard-android.txt'
 subprojects {
     afterEvaluate { proj ->
         if (proj.hasProperty('android')) {
-            proj.android.buildTypes.each { buildType ->
-                def oldFile = proj.android.getDefaultProguardFile('proguard-android.txt')
-                def newFile = proj.android.getDefaultProguardFile('proguard-android-optimize.txt')
+            proj.android.buildTypes.all { buildType ->
                 def files = buildType.proguardFiles
-                if (files.contains(oldFile)) {
-                    files.remove(oldFile)
-                    files.add(newFile)
+                def toRemove = files.findAll { it.name == 'proguard-android.txt' }
+                if (!toRemove.isEmpty()) {
+                    files.removeAll(toRemove)
+                    files.add(proj.android.getDefaultProguardFile('proguard-android-optimize.txt'))
                 }
             }
         }
