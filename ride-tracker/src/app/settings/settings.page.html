@@ -25,15 +25,7 @@
           </ion-segment>
         </div>
 
-        <div class="toggle-row">
-          <div class="toggle-info">
-            <h3>Auto-Pause</h3>
-            <p>Automatically pause when stationary</p>
-          </div>
-          <ion-toggle [checked]="settings.autoPause.enabled" 
-                      (ionChange)="onToggleChange('autoPauseEnabled', $event)">
-          </ion-toggle>
-        </div>
+
 
         <div class="toggle-row">
           <div class="toggle-info">
@@ -64,28 +56,18 @@
           </ion-segment>
         </div>
 
-        <div class="segment-wrapper">
-          <div class="segment-label">
-            <h3>GPS Accuracy</h3>
-            <p>Higher = more battery</p>
-          </div>
-          <ion-segment [value]="settings.gpsAccuracy" (ionChange)="onSelectChange('gpsAccuracy', $event)">
-            <ion-segment-button value="high">High</ion-segment-button>
-            <ion-segment-button value="balanced">Balanced</ion-segment-button>
-            <ion-segment-button value="low">Low</ion-segment-button>
-          </ion-segment>
-        </div>
+
 
         <div class="segment-wrapper" *ngIf="settings.trackingMode === 'normal'">
           <div class="segment-label">
-            <h3>Reading Interval</h3>
+            <h3>Reading Interval (s/min)</h3>
             <p>GPS point frequency (Normal mode)</p>
           </div>
           <ion-segment [value]="settings.readingInterval" (ionChange)="onReadingIntervalChange($event)">
-            <ion-segment-button [value]="10">10s</ion-segment-button>
-            <ion-segment-button [value]="30">30s</ion-segment-button>
-            <ion-segment-button [value]="60">1min</ion-segment-button>
-            <ion-segment-button [value]="300">5min</ion-segment-button>
+            <ion-segment-button [value]="10">10</ion-segment-button>
+            <ion-segment-button [value]="30">30</ion-segment-button>
+            <ion-segment-button [value]="60">1</ion-segment-button>
+            <ion-segment-button [value]="300">5</ion-segment-button>
           </ion-segment>
         </div>
 
@@ -94,78 +76,7 @@
         </div>
       </div>
 
-      <!-- Auto-Pause Settings Section -->
-      <div class="section-header">
-        <ion-icon name="pause-circle-outline"></ion-icon>
-        <h2>Auto-Pause Settings</h2>
-      </div>
 
-      <div class="settings-card">
-        <div class="segment-wrapper">
-          <div class="segment-label">
-            <h3>Stationary Threshold</h3>
-            <p>Time before auto-pause</p>
-          </div>
-          <ion-segment [value]="settings.autoPause.stationaryThreshold" (ionChange)="onAutoPauseChange('stationaryThreshold', $event)">
-            <ion-segment-button [value]="15">15s</ion-segment-button>
-            <ion-segment-button [value]="30">30s</ion-segment-button>
-            <ion-segment-button [value]="60">1m</ion-segment-button>
-            <ion-segment-button [value]="120">2m</ion-segment-button>
-          </ion-segment>
-        </div>
-
-        <div class="segment-wrapper">
-          <div class="segment-label">
-            <h3>Min Speed</h3>
-            <p>Below this = stopped</p>
-          </div>
-          <ion-segment [value]="settings.autoPause.minSpeedThreshold" (ionChange)="onAutoPauseChange('minSpeedThreshold', $event)">
-            <ion-segment-button [value]="0.28">1 km/h</ion-segment-button>
-            <ion-segment-button [value]="0.55">2 km/h</ion-segment-button>
-            <ion-segment-button [value]="0.83">3 km/h</ion-segment-button>
-            <ion-segment-button [value]="1.39">5 km/h</ion-segment-button>
-          </ion-segment>
-        </div>
-
-        <div class="toggle-row">
-          <div class="toggle-info">
-            <h3>Pause on Background</h3>
-            <p>When app goes to background</p>
-          </div>
-          <ion-toggle [checked]="settings.autoPause.pauseOnBackground" 
-                      (ionChange)="onAutoPauseToggle('pauseOnBackground', $event)">
-          </ion-toggle>
-        </div>
-
-        <div class="toggle-row">
-          <div class="toggle-info">
-            <h3>Pause on GPS Lost</h3>
-            <p>When GPS signal is lost</p>
-          </div>
-          <ion-toggle [checked]="settings.autoPause.pauseOnGpsLost" 
-                      (ionChange)="onAutoPauseToggle('pauseOnGpsLost', $event)">
-          </ion-toggle>
-        </div>
-      </div>
-
-      <!-- Map Section -->
-      <div class="section-header">
-        <ion-icon name="map-outline"></ion-icon>
-        <h2>Map</h2>
-      </div>
-
-      <div class="settings-card">
-        <div class="segment-wrapper">
-          <div class="segment-label">
-            <h3>Map Type</h3>
-          </div>
-          <ion-segment [value]="settings.mapType" (ionChange)="onSelectChange('mapType', $event)">
-            <ion-segment-button value="street">Street</ion-segment-button>
-            <ion-segment-button value="satellite">Satellite</ion-segment-button>
-            <ion-segment-button value="terrain">Terrain</ion-segment-button>
-          </ion-segment>
-        </div>
-      </div>
 
       <!-- Account & Sync Section -->
       <div class="section-header">

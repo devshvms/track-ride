@@ -3,14 +3,13 @@ import { Injectable } from '@angular/core';
 import { BehaviorSubject, Subscription } from 'rxjs';
 import { RideState } from '../models/ride-state.model';
 import { Ride, GpsPoint, RideBreak, PauseReason } from '../models/ride.model';
-import { SettingsService } from './settings.service';
+
 import { GpsMonitorService } from './gps-monitor.service';
 import { LocationService } from './location.service';
 import { HistoryService } from './history.service';
-import { AutoPauseService } from './auto-pause.service';
-import { MotionDetectionService } from './motion-detection.service';
+
 import { ForegroundServiceService } from './foreground-service.service';
-import { BackgroundTaskService } from './background-task.service';
+
 import { PowerManagementService } from './power-management.service';
 import { BackgroundGeolocationService } from './background-geolocation.service';
 import { RideUtils } from '../utils/ride-calculations';
@@ -33,23 +32,16 @@ export class RideService {
 
   private locationSub?: Subscription;
   private locationErrorSub?: Subscription;
-  private autoPauseSub?: Subscription;
   private gpsMonitorSub?: Subscription;
-  private motionSub?: Subscription;
   private uiRefreshTimer?: ReturnType<typeof setInterval>;
   private pauseStartTime?: number;
-  private motionCheckInProgress = false;
   private bgGeoActive = false;
 
   constructor(
-    private settings: SettingsService,
     private gpsMonitor: GpsMonitorService,
     private location: LocationService,
     private history: HistoryService,
-    private autoPause: AutoPauseService,
-    private motionDetection: MotionDetectionService,
     private foregroundService: ForegroundServiceService,
-    private backgroundTask: BackgroundTaskService,
     private powerManagement: PowerManagementService,
     private bgGeo: BackgroundGeolocationService
   ) {}
@@ -70,7 +62,7 @@ export class RideService {
     this.elapsedSubject.next(0);
     this.totalTimeSubject.next(0);
     this.stateSubject.next(RideState.TRACKING);
-    this.autoPause.startListening();
+    this.stateSubject.next(RideState.TRACKING);
     
     // Acquire wake lock to prevent device sleep during tracking
     this.powerManagement.acquireWakeLock();
@@ -146,10 +138,7 @@ export class RideService {
         this.recalculateElapsed();
         
         // Process GPS points from background geolocation
-        this.autoPause.evaluateMovement(point.speed ?? undefined);
         const state = this.stateSubject.value;
-        
-        // Process points in TRACKING or GPS_SIGNAL_LOST states
         if (state === RideState.TRACKING || state === RideState.GPS_SIGNAL_LOST) {
           this.processNewPoint(point);
         }
@@ -178,11 +167,7 @@ export class RideService {
         );
       }
       
-      this.autoPause.evaluateMovement(point.speed ?? undefined);
       const state = this.stateSubject.value;
-      
-      // Process points in TRACKING or GPS_SIGNAL_LOST states
-      // This allows automatic recovery when GPS signal returns
       if (state === RideState.TRACKING || state === RideState.GPS_SIGNAL_LOST) {
         this.processNewPoint(point);
       }
@@ -203,35 +188,14 @@ export class RideService {
     this.gpsMonitorSub = this.gpsMonitor.status$.subscribe(status =>
       this.handleGpsStatusChange(status.isLost)
     );
-
-    this.autoPauseSub = this.autoPause.events$.subscribe(event => {
-      const state = this.stateSubject.value;
-      if (event.pause) {
-        if (state === RideState.TRACKING || state === RideState.GPS_SIGNAL_LOST) {
-          this.pauseRide(event.reason ?? 'auto:stationary');
-        }
-      } else {
-        if (state === RideState.AUTO_PAUSED) {
-          this.resumeRide(true);
-        }
-      }
-    });
-
-    this.motionSub = this.motionDetection.motion$.subscribe(event => {
-      if (event.significantMovement && this.stateSubject.value === RideState.AUTO_PAUSED) {
-        this.handleMotionDetected();
-      }
-    });
   }
 
   private handleGpsStatusChange(isLost: boolean): void {
     const state = this.stateSubject.value;
     if (isLost && state === RideState.TRACKING) {
       this.stateSubject.next(RideState.GPS_SIGNAL_LOST);
-      this.autoPause.handleGpsStatus(true);
     } else if (!isLost && state === RideState.GPS_SIGNAL_LOST) {
       this.stateSubject.next(RideState.TRACKING);
-      this.autoPause.handleGpsStatus(false);
     }
   }
 
@@ -284,17 +248,11 @@ export class RideService {
         location: ride.points[ride.points.length - 1]
       };
       this.currentRideSubject.next({ ...ride, breaks: [...ride.breaks, newBreak] });
-      
-      if (reason.startsWith('auto:') && ride.points.length > 0) {
-        const lastPoint = ride.points[ride.points.length - 1];
-        this.motionDetection.startMonitoring(lastPoint);
-      }
     }
-    const newState = reason.startsWith('auto:') ? RideState.AUTO_PAUSED : RideState.PAUSED;
-    this.stateSubject.next(newState);
+    this.stateSubject.next(RideState.PAUSED);
   }
 
-  resumeRide(isAuto = false): void {
+  resumeRide(): void {
     const ride = this.currentRideSubject.value;
     const now = Date.now();
     if (ride && ride.breaks.length > 0) {
@@ -308,19 +266,8 @@ export class RideService {
       }
     }
     this.pauseStartTime = undefined;
-    this.motionDetection.stopMonitoring();
 
-    if (isAuto) {
-      this.stateSubject.next(RideState.AUTO_RESUME);
-      setTimeout(() => {
-        const nextState = this.gpsMonitor.currentStatus.isLost
-          ? RideState.GPS_SIGNAL_LOST
-          : RideState.TRACKING;
-        this.stateSubject.next(nextState);
-      }, 500);
-    } else {
-      this.stateSubject.next(RideState.TRACKING);
-    }
+    this.stateSubject.next(RideState.TRACKING);
   }
 
   async stopAndSaveRide(): Promise<void> {
@@ -347,45 +294,6 @@ export class RideService {
     this.stateSubject.next(RideState.IDLE);
   }
 
-  private handleMotionDetected(): void {
-    if (this.motionCheckInProgress) {
-      return;
-    }
-
-    this.motionCheckInProgress = true;
-    console.log('Motion detected during pause, checking GPS location...');
-
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const currentLocation: GpsPoint = {
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-          altitude: position.coords.altitude ?? undefined,
-          accuracy: position.coords.accuracy,
-          speed: position.coords.speed ?? 0,
-          timestamp: position.timestamp
-        };
-
-        if (this.motionDetection.shouldResumeBasedOnDistance(currentLocation)) {
-          console.log('Distance threshold exceeded (>50m), auto-resuming ride');
-          this.resumeRide(true);
-        } else {
-          console.log('Distance below threshold, continuing to monitor motion');
-        }
-        this.motionCheckInProgress = false;
-      },
-      (error) => {
-        console.warn('GPS check failed during motion detection:', error);
-        this.motionCheckInProgress = false;
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 0
-      }
-    );
-  }
-
   private async cleanupTracking(): Promise<void> {
     // Stop background geolocation (true foreground service)
     if (this.bgGeoActive) {
@@ -399,14 +307,10 @@ export class RideService {
     }
     
     this.location.stopTracking();
-    this.autoPause.stopListening();
-    this.motionDetection.stopMonitoring();
     this.stopUiRefreshTimer();
     this.locationSub?.unsubscribe();
     this.locationErrorSub?.unsubscribe();
-    this.autoPauseSub?.unsubscribe();
     this.gpsMonitorSub?.unsubscribe();
-    this.motionSub?.unsubscribe();
     
     // Stop foreground service notification (legacy)
     this.foregroundService.stopForegroundService();

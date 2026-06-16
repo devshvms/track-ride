@@ -166,7 +166,6 @@ export class AuthService {
         }
         
         // Request new token silently (prompt: 'none' for silent refresh)
-        const originalCallback = this.tokenClient.callback;
         this.tokenClient.callback = (response: any) => {
           this.handleTokenResponse(response);
           resolve(!response.error);

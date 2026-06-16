@@ -2,7 +2,7 @@
 import { Injectable } from '@angular/core';
 import { Subject, Subscription } from 'rxjs';
 import { GpsPoint, IntervalPreset } from '../models/ride.model';
-import { SettingsService } from './settings.service';
+import { BatteryOptimizerService } from './battery-optimizer.service';
 
 @Injectable({ providedIn: 'root' })
 export class LocationService {
@@ -16,10 +16,12 @@ export class LocationService {
 
   private settingsSub: Subscription | null = null;
   private currentInterval: IntervalPreset = 30;
-  private currentAccuracy: 'high' | 'balanced' | 'low' = 'high';
+  private enableHighAccuracy: boolean = true;
   private isTracking = false;
 
-  constructor(private settings: SettingsService) {}
+  constructor(
+    private batteryOptimizer: BatteryOptimizerService
+  ) {}
 
   /**
    * Starts GPS tracking with explicit intervals.
@@ -52,41 +54,29 @@ export class LocationService {
     // Start with current settings first
     this.startWithCurrentSettings();
     
-    // Then subscribe to settings changes (skip first emission since we just started)
+    // Then subscribe to battery optimization changes (skip first emission since we just started)
     let isFirstEmission = true;
-    this.settingsSub = this.settings.settings$.subscribe(settings => {
+    this.settingsSub = this.batteryOptimizer.optimizationState$.subscribe(opt => {
       if (isFirstEmission) {
         isFirstEmission = false;
         return; // Skip first emission to avoid duplicate start
       }
       
-      const newInterval = this.getIntervalForMode(settings.trackingMode, settings.readingInterval);
-      const newAccuracy = settings.gpsAccuracy;
+      const newInterval = opt.currentInterval;
+      const newAccuracy = opt.enableHighAccuracy;
       
-      if (newInterval !== this.currentInterval || newAccuracy !== this.currentAccuracy) {
+      if (newInterval !== this.currentInterval || newAccuracy !== this.enableHighAccuracy) {
         this.currentInterval = newInterval;
-        this.currentAccuracy = newAccuracy;
+        this.enableHighAccuracy = newAccuracy;
         this.restartWithNewSettings();
       }
     });
   }
 
-  /**
-   * Determines the GPS interval based on tracking mode.
-   * Normal mode: 30s default (high accuracy)
-   * Battery Saver mode: 60s default (high accuracy)
-   */
-  private getIntervalForMode(mode: 'normal' | 'battery_saver', userInterval: IntervalPreset): IntervalPreset {
-    if (mode === 'battery_saver') {
-      return 60; // 1 min for battery saver
-    }
-    return userInterval; // Use user's selected interval for normal mode
-  }
-
   private startWithCurrentSettings(): void {
-    const userSettings = this.settings.currentSettings;
-    this.currentInterval = this.getIntervalForMode(userSettings.trackingMode, userSettings.readingInterval);
-    this.currentAccuracy = userSettings.gpsAccuracy;
+    const opt = this.batteryOptimizer.getOptimizedSettings();
+    this.currentInterval = opt.interval;
+    this.enableHighAccuracy = opt.enableHighAccuracy;
     
     // Clear any existing interval first (safety check)
     if (this.intervalId !== null) {
@@ -94,9 +84,8 @@ export class LocationService {
       this.intervalId = null;
     }
     
-    const highAccuracy = this.currentAccuracy === 'high';
     const options: PositionOptions = {
-      enableHighAccuracy: highAccuracy,
+      enableHighAccuracy: this.enableHighAccuracy,
       timeout: 30000, // Increased to 30s for better reliability in background
       maximumAge: 5000 // Allow slightly cached location (5s) to prevent timeouts
     };
@@ -104,14 +93,12 @@ export class LocationService {
     // Get initial position immediately
     this.requestPosition(options);
 
-    // Set up interval-based polling with getCurrentPosition()
-    // This provides predictable, explicit intervals for smooth tracking
     const intervalMs = this.currentInterval * 1000;
     this.intervalId = setInterval(() => {
       this.requestPosition(options);
     }, intervalMs);
     
-    console.log(`GPS tracking started with ${this.currentInterval}s interval (${userSettings.trackingMode} mode)`);
+    console.log(`GPS tracking started with ${this.currentInterval}s interval`);
     console.log('Background GPS enabled - ensure battery optimization is disabled');
   }
 
@@ -155,7 +142,7 @@ export class LocationService {
   private restartWithNewSettings(): void {
     if (!this.isTracking) return;
     
-    console.log(`Restarting GPS with new settings: ${this.currentInterval}s interval, ${this.currentAccuracy} accuracy`);
+    console.log(`Restarting GPS with new settings: ${this.currentInterval}s interval, High Accuracy: ${this.enableHighAccuracy}`);
     
     if (this.intervalId !== null) {
       clearInterval(this.intervalId);

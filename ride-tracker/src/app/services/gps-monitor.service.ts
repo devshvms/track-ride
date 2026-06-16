@@ -3,7 +3,7 @@ import { Injectable } from '@angular/core';
 import { BehaviorSubject, Subscription, timer, interval } from 'rxjs';
 import { GpsStatus } from '../models/ride.model';
 import { LocationService } from './location.service';
-import { SettingsService } from './settings.service';
+
 
 @Injectable({ providedIn: 'root' })
 export class GpsMonitorService {
@@ -18,8 +18,7 @@ export class GpsMonitorService {
   private readonly RETRY_INTERVAL_MS = 10000; // Retry every 10 seconds when lost
 
   constructor(
-    private locationService: LocationService,
-    private settings: SettingsService
+    private locationService: LocationService
   ) {
     this.locationService.location$.subscribe(() => this.onSignalReceived());
     this.locationService.error$.subscribe(() => this.onSignalError());
@@ -73,8 +72,8 @@ export class GpsMonitorService {
 
   private scheduleTimeout(): void {
     this.timeoutSubscription?.unsubscribe();
-    // FIX: gpsLostTimeout is now in seconds — multiply by 1000 for ms
-    const timeoutMs = (this.settings.currentSettings.autoPause.gpsLostTimeout ?? 60) * 1000;
+    // Default to 60 seconds
+    const timeoutMs = 60 * 1000;
     this.timeoutSubscription = timer(timeoutMs).subscribe(() => this.markLost());
   }
 
@@ -118,7 +117,7 @@ export class GpsMonitorService {
       
       // Force a location check
       navigator.geolocation.getCurrentPosition(
-        (position) => {
+        (_position) => {
           console.log('GPS recovery successful!');
           // This will trigger onSignalReceived via location service
         },

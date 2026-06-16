@@ -325,8 +325,8 @@ describe('RideUtils - Speed Calculations', () => {
       // Simulate starting from rest and accelerating
       // 0 m/s -> 5 m/s over 30 seconds
       for (let i = 0; i <= 30; i++) {
-        const speed = i * 0.15; // Gradual acceleration
-        const distance = speed * 1; // Distance covered in 1 second
+
+
         points.push({
           latitude: points.length * 0.00001,
           longitude: 0,

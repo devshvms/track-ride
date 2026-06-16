@@ -36,14 +36,9 @@ export class SettingsPage implements OnInit {
 
   ngOnInit() { }
 
-  onToggleChange(key: keyof AppSettings | 'autoPauseEnabled', event: any) {
+  onToggleChange(key: keyof AppSettings, event: any) {
     const value = event.detail.checked;
-
-    if (key === 'autoPauseEnabled') {
-      this.settingsService.updateSettings({ autoPause: { ...this.settingsService.currentSettings.autoPause, enabled: value } });
-    } else {
-      this.settingsService.updateSettings({ [key]: value });
-    }
+    this.settingsService.updateSettings({ [key]: value });
   }
 
   onSelectChange(key: keyof AppSettings, event: any) {
@@ -59,19 +54,7 @@ export class SettingsPage implements OnInit {
     }
   }
 
-  onAutoPauseChange(key: 'stationaryThreshold' | 'minSpeedThreshold', event: any) {
-    const value = Number(event.detail.value);
-    this.settingsService.updateSettings({
-      autoPause: { ...this.settingsService.currentSettings.autoPause, [key]: value }
-    });
-  }
 
-  onAutoPauseToggle(key: 'pauseOnBackground' | 'pauseOnGpsLost', event: any) {
-    const value = event.detail.checked;
-    this.settingsService.updateSettings({
-      autoPause: { ...this.settingsService.currentSettings.autoPause, [key]: value }
-    });
-  }
 
   resetSettings() {
     this.settingsService.resetToDefaults();

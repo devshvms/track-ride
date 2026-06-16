@@ -12,7 +12,7 @@ export interface BatteryState {
 
 export interface OptimizationState {
   currentInterval: IntervalPreset;
-  currentAccuracy: 'high' | 'balanced' | 'low';
+  enableHighAccuracy: boolean;
   reason: string;
 }
 
@@ -27,7 +27,7 @@ export class BatteryOptimizerService {
 
   private optimizationState = new BehaviorSubject<OptimizationState>({
     currentInterval: 30,
-    currentAccuracy: 'high',
+    enableHighAccuracy: true,
     reason: 'Default settings'
   });
   public optimizationState$ = this.optimizationState.asObservable();
@@ -81,20 +81,20 @@ export class BatteryOptimizerService {
     const userSettings = this.settings.currentSettings;
     
     let interval: IntervalPreset = userSettings.readingInterval;
-    let accuracy = userSettings.gpsAccuracy;
-    let reason = 'User settings';
+    let enableHighAccuracy = !battery.isLowPowerMode;
+    let reason = 'Calculated from battery state';
 
     // Battery-based adjustments - use preset intervals
     if (!battery.isCharging) {
       if (battery.level < 15) {
         // Critical battery - maximum power saving (5 min)
         interval = 300;
-        accuracy = 'low';
+        enableHighAccuracy = false;
         reason = 'Critical battery (<15%)';
       } else if (battery.level < 30) {
         // Low battery - moderate power saving (1 min)
         interval = this.selectClosestInterval(interval, 60);
-        if (accuracy === 'high') accuracy = 'balanced';
+        enableHighAccuracy = false;
         reason = 'Low battery (<30%)';
       }
     }
@@ -110,14 +110,13 @@ export class BatteryOptimizerService {
     if (this.lastSpeed > 10) { // > 36 km/h
       if (battery.level > 30 || battery.isCharging) {
         interval = this.selectClosestInterval(interval, 30);
-        accuracy = userSettings.gpsAccuracy;
         reason = 'High speed detected';
       }
     }
 
     this.optimizationState.next({
       currentInterval: interval,
-      currentAccuracy: accuracy,
+      enableHighAccuracy,
       reason
     });
   }
@@ -132,11 +131,11 @@ export class BatteryOptimizerService {
     return Math.max(current, validTarget) as IntervalPreset;
   }
 
-  getOptimizedSettings(): { interval: IntervalPreset; accuracy: 'high' | 'balanced' | 'low' } {
+  getOptimizedSettings(): { interval: IntervalPreset; enableHighAccuracy: boolean } {
     const state = this.optimizationState.value;
     return {
       interval: state.currentInterval,
-      accuracy: state.currentAccuracy
+      enableHighAccuracy: state.enableHighAccuracy
     };
   }
 
@@ -146,8 +145,8 @@ export class BatteryOptimizerService {
     const userSettings = this.settings.currentSettings;
     this.optimizationState.next({
       currentInterval: userSettings.readingInterval,
-      currentAccuracy: userSettings.gpsAccuracy,
-      reason: 'Reset to user settings'
+      enableHighAccuracy: !this.batteryState.value.isLowPowerMode,
+      reason: 'Reset to standard logic'
     });
   }
 }

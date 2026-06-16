@@ -8,20 +8,10 @@ export class SettingsService {
   private readonly STORAGE_KEY = 'ride_tracker_settings';
 
   private defaultSettings: AppSettings = {
-    gpsAccuracy: 'high',
     trackingMode: 'normal',       // normal mode by default
     readingInterval: 30,          // 30s default for normal mode
-    autoPause: {
-      enabled: true,
-      stationaryThreshold: 30,    // seconds
-      minSpeedThreshold: 0.55,    // m/s (~2 km/h)
-      pauseOnBackground: true,
-      pauseOnGpsLost: true,
-      gpsLostTimeout: 60          // FIX: was 10000 (ms confused as seconds) — now 60 seconds
-    },
     units: 'km',
     theme: 'system',              // NEW
-    mapType: 'street',            // NEW
     pushNotifications: true,      // NEW
     syncWithGoogle: false
   };
@@ -40,11 +30,7 @@ export class SettingsService {
         const parsed = JSON.parse(stored) as Partial<AppSettings>;
         return {
           ...this.defaultSettings,
-          ...parsed,
-          autoPause: {
-            ...this.defaultSettings.autoPause,
-            ...(parsed.autoPause ?? {})
-          }
+          ...parsed
         };
       } catch {
         return this.defaultSettings;
@@ -57,10 +43,7 @@ export class SettingsService {
     const current = this.settingsSubject.value;
     const updated: AppSettings = {
       ...current,
-      ...updates,
-      autoPause: updates.autoPause
-        ? { ...current.autoPause, ...updates.autoPause }
-        : current.autoPause
+      ...updates
     };
     this.settingsSubject.next(updated);
     localStorage.setItem(this.STORAGE_KEY, JSON.stringify(updated));

@@ -2,7 +2,7 @@
 import { Component, Input, AfterViewInit, OnDestroy, ElementRef, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { GpsPoint, RideBreak } from '../../../models/ride.model';
-import { Chart, ChartConfiguration, Plugin, registerables } from 'chart.js';
+import { Chart, ChartConfiguration, registerables } from 'chart.js';
 import annotationPlugin from 'chartjs-plugin-annotation';
 
 Chart.register(...registerables, annotationPlugin);

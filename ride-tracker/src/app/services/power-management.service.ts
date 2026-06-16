@@ -67,7 +67,7 @@ export class PowerManagementService {
         // Fallback: Use native WakeLock API if available (modern browsers/PWA)
         if ('wakeLock' in navigator) {
           try {
-            const wakeLock = await (navigator as any).wakeLock.request('screen');
+            await (navigator as any).wakeLock.request('screen');
             this.wakeLockActive = true;
             console.log('Wake lock acquired (native API)');
           } catch (err) {

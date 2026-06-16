@@ -3,7 +3,7 @@ import { Component, OnDestroy, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
 import { RideService } from '../services/ride.service';
 import { RideState } from '../models/ride-state.model';
-import { Observable, Subscription } from 'rxjs';
+import { Observable } from 'rxjs';
 import { Ride } from '../models/ride.model';
 import { ModalController, IonicModule } from '@ionic/angular';
 import { PauseModalComponent } from './pause-modal/pause-modal.component';

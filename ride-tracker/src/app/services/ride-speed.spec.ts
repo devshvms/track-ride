@@ -4,10 +4,11 @@ import { SettingsService } from './settings.service';
 import { GpsMonitorService } from './gps-monitor.service';
 import { LocationService } from './location.service';
 import { HistoryService } from './history.service';
-import { AutoPauseService } from './auto-pause.service';
-import { MotionDetectionService } from './motion-detection.service';
+
 import { ForegroundServiceService } from './foreground-service.service';
 import { BackgroundTaskService } from './background-task.service';
+import { PowerManagementService } from './power-management.service';
+import { BackgroundGeolocationService } from './background-geolocation.service';
 import { RideState } from '../models/ride-state.model';
 import { GpsPoint, Ride } from '../models/ride.model';
 import { BehaviorSubject } from 'rxjs';
@@ -16,12 +17,8 @@ describe('RideService - Speed Tracking', () => {
   let service: RideService;
   let locationService: jasmine.SpyObj<LocationService>;
   let historyService: jasmine.SpyObj<HistoryService>;
-  let settingsService: jasmine.SpyObj<SettingsService>;
-  let gpsMonitorService: jasmine.SpyObj<GpsMonitorService>;
-  let autoPauseService: jasmine.SpyObj<AutoPauseService>;
-  let motionDetectionService: jasmine.SpyObj<MotionDetectionService>;
+
   let foregroundService: jasmine.SpyObj<ForegroundServiceService>;
-  let backgroundTaskService: jasmine.SpyObj<BackgroundTaskService>;
 
   beforeEach(() => {
     const locationSpy = jasmine.createSpyObj('LocationService', 
@@ -41,18 +38,13 @@ describe('RideService - Speed Tracking', () => {
         currentStatus: { isLost: false, retryCount: 0 }
       }
     );
-    const autoPauseSpy = jasmine.createSpyObj('AutoPauseService', 
-      ['startListening', 'stopListening', 'evaluateMovement', 'handleGpsStatus'], 
-      { events$: new BehaviorSubject({ pause: false }) }
-    );
-    const motionDetectionSpy = jasmine.createSpyObj('MotionDetectionService', 
-      ['startMonitoring', 'stopMonitoring', 'shouldResumeBasedOnDistance'], 
-      { motion$: new BehaviorSubject({ significantMovement: false }) }
-    );
+
     const foregroundSpy = jasmine.createSpyObj('ForegroundServiceService', 
       ['startForegroundService', 'updateForegroundService', 'stopForegroundService']
     );
     const backgroundTaskSpy = jasmine.createSpyObj('BackgroundTaskService', ['start', 'stop']);
+    const powerManagementSpy = jasmine.createSpyObj('PowerManagementService', ['acquireWakeLock', 'releaseWakeLock']);
+    const bgGeoSpy = jasmine.createSpyObj('BackgroundGeolocationService', ['startTracking', 'stopTracking']);
 
     TestBed.configureTestingModule({
       providers: [
@@ -61,22 +53,24 @@ describe('RideService - Speed Tracking', () => {
         { provide: HistoryService, useValue: historySpy },
         { provide: SettingsService, useValue: settingsSpy },
         { provide: GpsMonitorService, useValue: gpsMonitorSpy },
-        { provide: AutoPauseService, useValue: autoPauseSpy },
-        { provide: MotionDetectionService, useValue: motionDetectionSpy },
+
         { provide: ForegroundServiceService, useValue: foregroundSpy },
-        { provide: BackgroundTaskService, useValue: backgroundTaskSpy }
+        { provide: BackgroundTaskService, useValue: backgroundTaskSpy },
+        { provide: PowerManagementService, useValue: powerManagementSpy },
+        { provide: BackgroundGeolocationService, useValue: bgGeoSpy }
       ]
     });
 
     service = TestBed.inject(RideService);
     locationService = TestBed.inject(LocationService) as jasmine.SpyObj<LocationService>;
     historyService = TestBed.inject(HistoryService) as jasmine.SpyObj<HistoryService>;
-    settingsService = TestBed.inject(SettingsService) as jasmine.SpyObj<SettingsService>;
-    gpsMonitorService = TestBed.inject(GpsMonitorService) as jasmine.SpyObj<GpsMonitorService>;
-    autoPauseService = TestBed.inject(AutoPauseService) as jasmine.SpyObj<AutoPauseService>;
-    motionDetectionService = TestBed.inject(MotionDetectionService) as jasmine.SpyObj<MotionDetectionService>;
+    TestBed.inject(SettingsService);
+    TestBed.inject(GpsMonitorService);
+
     foregroundService = TestBed.inject(ForegroundServiceService) as jasmine.SpyObj<ForegroundServiceService>;
-    backgroundTaskService = TestBed.inject(BackgroundTaskService) as jasmine.SpyObj<BackgroundTaskService>;
+    TestBed.inject(BackgroundTaskService);
+    TestBed.inject(PowerManagementService);
+    TestBed.inject(BackgroundGeolocationService);
   });
 
   describe('Initial State', () => {
@@ -298,7 +292,7 @@ describe('RideService - Speed Tracking', () => {
         service.pauseRide('break');
         
         setTimeout(() => {
-          service.resumeRide(false);
+          service.resumeRide();
           
           setTimeout(() => {
             const point2: GpsPoint = { latitude: 0.001, longitude: 0, timestamp: Date.now(), speed: 10 };

@@ -5,7 +5,7 @@ import { IonicModule, AlertController } from '@ionic/angular';
 import { CommonModule } from '@angular/common';
 import { HistoryService } from '../../services/history.service';
 import { SettingsService } from '../../services/settings.service';
-import { Ride, GpsPoint } from '../../models/ride.model';
+import { Ride } from '../../models/ride.model';
 import { RideUtils } from '../../utils/ride-calculations';
 import { SpeedPipe, DistancePipe, DurationPipe } from '../../pipes/duration.pipe';
 import { GpxExportService } from '../../services/gpx-export.service';

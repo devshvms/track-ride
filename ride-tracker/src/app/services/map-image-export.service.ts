@@ -40,9 +40,6 @@ export class MapImageExportService {
     // Use device pixel ratio for proper scaling
     const pixelRatio = window.devicePixelRatio || 1;
 
-    // Get the element's position to account for any offsets
-    const rect = mapEl.getBoundingClientRect();
-    
     // Capture the map using html2canvas
     const mapCanvas = await html2canvas(mapEl, {
       useCORS: true,

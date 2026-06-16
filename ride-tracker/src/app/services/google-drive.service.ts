@@ -16,7 +16,6 @@ interface DriveFile {
 export class GoogleDriveService {
   private readonly SYNC_FILE_NAME = 'ride_tracker_history.json';
   private readonly LAST_SYNC_KEY = 'ride_tracker_last_sync';
-  private readonly APP_FOLDER = 'appDataFolder';
   
   private syncStatus = new BehaviorSubject<SyncState>('idle');
   public syncStatus$ = this.syncStatus.asObservable();

@@ -1,5 +1,5 @@
 import { RideUtils } from '../utils/ride-calculations';
-import { GpsPoint, Ride } from '../models/ride.model';
+import { GpsPoint } from '../models/ride.model';
 
 describe('Speed Calculation - Integration & Edge Cases', () => {
 
